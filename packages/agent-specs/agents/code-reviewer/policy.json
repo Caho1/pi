@@ -1,0 +1,101 @@
+{
+  "agentType": "reviewer",
+  "version": "1.0.0",
+  "displayName": "Code Reviewer",
+  "description": "Enterprise code reviewer with structured findings output.",
+  "skillRefs": [],
+  "extensionRefs": [],
+  "promptTemplates": [],
+  "defaultModelPolicy": {
+    "preferredRole": "default",
+    "providerAllowlist": ["right-codes", "anthropic"],
+    "modelAllowlist": ["gpt-5-codex", "claude-sonnet-4-20250514"],
+    "failoverOrder": [
+      { "provider": "right-codes", "model": "gpt-5-codex" },
+      { "provider": "anthropic", "model": "claude-sonnet-4-20250514" }
+    ],
+    "maxAttemptsPerProvider": 1,
+    "thinkingLevel": "medium",
+    "maxTokens": 16000
+  },
+  "defaultToolPolicy": {
+    "mode": "allowlist",
+    "tools": ["read", "grep", "find", "ls"]
+  },
+  "defaultWorkspacePolicy": {
+    "mode": "readonly",
+    "retainOnFailure": true,
+    "network": "disabled",
+    "maxDiskMb": 512,
+    "ttlMinutes": 30
+  },
+  "defaultCompactionPolicy": {
+    "mode": "default",
+    "preserveToolOutputs": true,
+    "preserveRecentTurns": 4,
+    "summarizeOlderThanTurns": 12,
+    "emitCompactionDiagnostics": true
+  },
+  "outputContract": {
+    "mode": "tool-submission",
+    "requireSubmitResultTool": true,
+    "textFallbackAllowed": false,
+    "schema": {
+      "type": "object",
+      "required": ["summary", "verdict", "findings"],
+      "properties": {
+        "summary": { "type": "string" },
+        "verdict": { "type": "string", "enum": ["approve", "changes_requested", "comment"] },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "title", "details"],
+            "properties": {
+              "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+              "title": { "type": "string" },
+              "details": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "sessionReusePolicy": {
+    "mode": "none",
+    "persistent": false
+  },
+  "subagentPolicy": {
+    "enabled": false,
+    "maxDepth": 1,
+    "maxBreadth": 1,
+    "maxParallel": 1,
+    "inheritWorkspace": true,
+    "inheritToolPolicy": true,
+    "inheritModelPolicy": true
+  },
+  "completionPolicy": {
+    "requirePromptResolved": true,
+    "requireTerminalEvent": true,
+    "requireNoPendingWork": true,
+    "requireSubmitResult": true,
+    "settledTimeoutMs": 3000
+  },
+  "extensionGovernance": {
+    "allowedExtensionRefs": [],
+    "allowRuntimeInstall": false,
+    "allowWorkspaceDiscovery": false,
+    "hashPinned": true
+  },
+  "costPolicy": {
+    "maxCostUsd": 3,
+    "maxTokens": 16000,
+    "warnAtPercent": 80
+  },
+  "retryPolicy": {
+    "maxRetries": 1,
+    "retryableErrors": ["model.rate_limit", "model.overloaded"],
+    "backoffBaseMs": 200,
+    "backoffMaxMs": 1000
+  }
+}

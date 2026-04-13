@@ -1,0 +1,96 @@
+{
+  "agentType": "requirement-analyst",
+  "version": "1.0.0",
+  "displayName": "Requirement Analyst",
+  "description": "Requirement analysis agent for intake and clarification.",
+  "skillRefs": [],
+  "extensionRefs": [],
+  "promptTemplates": [],
+  "defaultModelPolicy": {
+    "preferredRole": "plan",
+    "providerAllowlist": ["right-codes", "anthropic"],
+    "modelAllowlist": ["gpt-5-codex", "claude-sonnet-4-20250514"],
+    "failoverOrder": [
+      { "provider": "right-codes", "model": "gpt-5-codex" },
+      { "provider": "anthropic", "model": "claude-sonnet-4-20250514" }
+    ],
+    "maxAttemptsPerProvider": 1,
+    "thinkingLevel": "high",
+    "maxTokens": 16000
+  },
+  "defaultToolPolicy": {
+    "mode": "allowlist",
+    "tools": ["read", "write", "ls"]
+  },
+  "defaultWorkspacePolicy": {
+    "mode": "ephemeral",
+    "retainOnFailure": true,
+    "network": "disabled",
+    "maxDiskMb": 512,
+    "ttlMinutes": 30
+  },
+  "defaultCompactionPolicy": {
+    "mode": "safeguard",
+    "preserveToolOutputs": true,
+    "preserveRecentTurns": 6,
+    "summarizeOlderThanTurns": 12,
+    "emitCompactionDiagnostics": true
+  },
+  "outputContract": {
+    "mode": "tool-submission",
+    "requireSubmitResultTool": true,
+    "textFallbackAllowed": false,
+    "schema": {
+      "type": "object",
+      "required": ["summary", "assumptions", "recommendations"],
+      "properties": {
+        "summary": { "type": "string" },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommendations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "sessionReusePolicy": {
+    "mode": "none",
+    "persistent": false
+  },
+  "subagentPolicy": {
+    "enabled": false,
+    "maxDepth": 1,
+    "maxBreadth": 1,
+    "maxParallel": 1,
+    "inheritWorkspace": true,
+    "inheritToolPolicy": true,
+    "inheritModelPolicy": true
+  },
+  "completionPolicy": {
+    "requirePromptResolved": true,
+    "requireTerminalEvent": true,
+    "requireNoPendingWork": true,
+    "requireSubmitResult": true,
+    "settledTimeoutMs": 3000
+  },
+  "extensionGovernance": {
+    "allowedExtensionRefs": [],
+    "allowRuntimeInstall": false,
+    "allowWorkspaceDiscovery": false,
+    "hashPinned": true
+  },
+  "costPolicy": {
+    "maxCostUsd": 3,
+    "maxTokens": 16000,
+    "warnAtPercent": 80
+  },
+  "retryPolicy": {
+    "maxRetries": 1,
+    "retryableErrors": ["model.rate_limit", "model.overloaded"],
+    "backoffBaseMs": 200,
+    "backoffMaxMs": 1000
+  }
+}

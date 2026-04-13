@@ -1,0 +1,27 @@
+{
+  "name": "pi-agent-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx apps/agent-control-plane/src/server.ts",
+    "start": "node dist/apps/agent-control-plane/src/server.js",
+    "worker:rpc": "tsx apps/agent-worker/src/rpc-entry.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mariozechner/pi-ai": "0.66.1",
+    "@mariozechner/pi-coding-agent": "0.66.1",
+    "@sinclair/typebox": "^0.34.41",
+    "ajv": "^8.17.1",
+    "fastify": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.4"
+  }
+}
