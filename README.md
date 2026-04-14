@@ -111,21 +111,13 @@ pnpm install
 
 最少需要提供模型提供方配置。
 
-如果你要使用 `expert-profile`，当前推荐配置是阿里云百炼 `glm-5`：
+当前默认模型配置统一为阿里云百炼 `glm-5`：
 
 ```bash
 export ALIYUN_BAILIAN_API_KEY='你的密钥'
 export ALIYUN_BAILIAN_BASE_URL='https://dashscope.aliyuncs.com/compatible-mode/v1'
 export ALIYUN_BAILIAN_MODEL_ID='glm-5'
 export PORT=3000
-```
-
-其他 Agent 如需继续使用 `right-codes`，也可以单独提供：
-
-```bash
-export RIGHT_CODES_API_KEY='你的密钥'
-export RIGHT_CODES_BASE_URL='https://right.codes/codex/v1'
-export RIGHT_CODES_MODEL_ID='gpt-5-codex'
 ```
 
 可选配置：

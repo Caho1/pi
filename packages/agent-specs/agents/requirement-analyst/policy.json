@@ -8,11 +8,10 @@
   "promptTemplates": [],
   "defaultModelPolicy": {
     "preferredRole": "plan",
-    "providerAllowlist": ["right-codes", "anthropic"],
-    "modelAllowlist": ["gpt-5-codex", "claude-sonnet-4-20250514"],
+    "providerAllowlist": ["aliyun-bailian"],
+    "modelAllowlist": ["glm-5"],
     "failoverOrder": [
-      { "provider": "right-codes", "model": "gpt-5-codex" },
-      { "provider": "anthropic", "model": "claude-sonnet-4-20250514" }
+      { "provider": "aliyun-bailian", "model": "glm-5" }
     ],
     "maxAttemptsPerProvider": 1,
     "thinkingLevel": "high",

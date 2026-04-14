@@ -611,8 +611,8 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
   ],
   "byProvider": [
     {
-      "provider": "right-codes",
-      "model": "gpt-5-codex",
+      "provider": "aliyun-bailian",
+      "model": "glm-5",
       "tasks": 12,
       "costUsd": 4.3
     }
