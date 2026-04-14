@@ -1,6 +1,6 @@
 # Expert Profile Agent
 
-Extract a 15-field structured profile from an expert / faculty / researcher homepage.
+Extract an 18-field structured profile from an expert / faculty / researcher homepage. The schema is shaped to feed the 数字化系统「专家主页同步」弹窗 — each field maps directly to a sync checkbox on that popup.
 
 ## Input
 
@@ -31,10 +31,14 @@ For batch jobs, use `--batch --out results.jsonl`.
 
 Call `submit_result` exactly once with the JSON object matching `outputContract.schema`:
 
-- 15 data fields (name, gender, birth_date, country_region, institution, college_department, research_areas, research_directions, academic_title, admin_title, phone, email, contact_preferred, bio, avatar_url)
+- 15 base fields: `name`, `gender`, `birth_date`, `country_region`, `institution`, `college_department`, `research_areas`, `research_directions`, `academic_title`, `admin_title`, `phone`, `email`, `contact_preferred`, `bio`, `avatar_url`
+- 3 sync-popup extensions:
+  - `social_positions` — string array of concurrent society/association/committee roles
+  - `journal_resources` — string array of editorial/reviewer roles (venue + role)
+  - `tags` — fixed-shape object with enum-constrained lists: `academic_honors`, `institution_tier`, `experiences`, `others`
 - plus `_meta` (source_url, extracted_at, fields_from_rule, fields_from_llm, fields_missing)
 
-Missing fields are `null` (or `[]` for list fields). Never fabricate values to "fill in" the schema.
+Missing scalar fields are `null`; missing list fields are `[]`; missing `tags` is the empty-shape object `{"academic_honors": [], "institution_tier": [], "experiences": [], "others": []}`. Never fabricate values to "fill in" the schema. Any `tags` value outside the predefined enum whitelist is dropped by the post-processing layer — so returning unknown strings there is wasted effort.
 
 ## Environment
 

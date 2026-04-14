@@ -2,7 +2,7 @@
   "agentType": "expert-profile",
   "version": "1.0.0",
   "displayName": "Expert Profile Extractor",
-  "description": "Extracts structured 15-field profiles from expert/faculty/researcher homepages using a rule-layer + LLM pipeline.",
+  "description": "Extracts structured 18-field profiles from expert/faculty/researcher homepages using a rule-layer + LLM pipeline. Output is shaped to feed the 专家主页同步 popup (18 sync-checkbox fields including social_positions, journal_resources, and an enum-constrained tags object).",
   "skillRefs": [
     "/Users/jiahao/Desktop/PythonProject/pi/packages/agent-specs/skills/expert-profile-extractor/SKILL.md"
   ],
@@ -47,7 +47,8 @@
         "name", "gender", "birth_date", "country_region", "institution",
         "college_department", "research_areas", "research_directions",
         "academic_title", "admin_title", "phone", "email",
-        "contact_preferred", "bio", "avatar_url", "_meta"
+        "contact_preferred", "bio", "avatar_url",
+        "social_positions", "journal_resources", "tags", "_meta"
       ],
       "properties": {
         "name": { "type": ["string", "null"] },
@@ -65,6 +66,48 @@
         "contact_preferred": { "type": ["string", "null"], "enum": ["email", "phone", "other", null] },
         "bio": { "type": ["string", "null"] },
         "avatar_url": { "type": ["string", "null"] },
+        "social_positions": { "type": "array", "items": { "type": "string" } },
+        "journal_resources": { "type": "array", "items": { "type": "string" } },
+        "tags": {
+          "type": "object",
+          "required": ["academic_honors", "institution_tier", "experiences", "others"],
+          "properties": {
+            "academic_honors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["院士头衔", "校级", "处级", "科协会领导", "学科带头人"]
+              }
+            },
+            "institution_tier": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "QS Top 50", "QS Top 100", "QS Top 200", "QS Top 500", "QS Top 1000",
+                  "985", "211", "双一流", "其它"
+                ]
+              }
+            },
+            "experiences": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["海归", "有过博士后经历", "参与学术社团", "曾担任学术职务"]
+              }
+            },
+            "others": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "顶尖学术奖项", "导师职务", "深度培训经历", "一般培训经历",
+                  "兼办", "外联", "院校"
+                ]
+              }
+            }
+          }
+        },
         "_meta": {
           "type": "object",
           "required": ["source_url", "extracted_at"],

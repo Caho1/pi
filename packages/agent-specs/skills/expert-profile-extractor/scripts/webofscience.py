@@ -11,7 +11,7 @@ from typing import Any, Optional
 
 import requests
 
-from schema import ALL_FIELDS, ExpertProfile, ProfileMeta
+from schema import ALL_FIELDS, ExpertProfile, ProfileMeta, empty_tags
 
 
 USER_AGENT = (
@@ -323,10 +323,20 @@ def extract_profile(
         "contact_preferred": None,
         "bio": record.get("summary") if isinstance(record.get("summary"), str) else None,
         "avatar_url": record.get("photoUrlLarge") if isinstance(record.get("photoUrlLarge"), str) else None,
+        # Web of Science's author API does not expose these — leave empty; the
+        # generic pipeline will populate them when a homepage URL is used instead.
+        "social_positions": [],
+        "journal_resources": [],
+        "tags": empty_tags(),
     }
 
-    fields_from_api = sorted([field for field in ALL_FIELDS if merged.get(field) not in (None, "", [])])
-    missing = [field for field in ALL_FIELDS if merged.get(field) in (None, "", [])]
+    def _is_empty(field: str, value) -> bool:
+        if field == "tags":
+            return not isinstance(value, dict) or all(not value.get(k) for k in value)
+        return value in (None, "", [])
+
+    fields_from_api = sorted([field for field in ALL_FIELDS if not _is_empty(field, merged.get(field))])
+    missing = [field for field in ALL_FIELDS if _is_empty(field, merged.get(field))]
 
     meta = ProfileMeta(
         source_url=url,

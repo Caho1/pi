@@ -15,6 +15,9 @@ export interface PlatformRuntimeConfig {
     rightCodes: OpenAICompatibleProviderConfig;
     aliyunBailian: OpenAICompatibleProviderConfig;
   };
+  businessApi: {
+    expertProfileToken?: string;
+  };
   callbacks: {
     maxAttempts: number;
     backoffBaseMs: number;
@@ -116,6 +119,9 @@ export function loadPlatformRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
         apiKeyEnvVar: aliyunApiKeyEnvVar,
         api: "openai-completions",
       },
+    },
+    businessApi: {
+      expertProfileToken: env.EXPERT_PROFILE_API_TOKEN?.trim() || undefined,
     },
     callbacks: {
       maxAttempts: Number(env.PLATFORM_CALLBACK_MAX_ATTEMPTS ?? "3"),

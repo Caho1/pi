@@ -22,6 +22,7 @@
 更细的实现状态请看：
 
 - [docs/implementation-status.md](./docs/implementation-status.md)
+- [docs/expert-profile-api-simple.md](./docs/expert-profile-api-simple.md)
 - [PLAN.md](./PLAN.md)
 
 ## 适用场景
@@ -46,6 +47,7 @@
 已提供：
 
 - `POST /v1/agent-tasks`
+- `POST /v1/expert-profiles/extract`
 - `GET /v1/agent-tasks/{taskId}`
 - `POST /v1/agent-tasks/{taskId}/cancel`
 - `POST /v1/agent-tasks/{taskId}/retry`
@@ -201,7 +203,8 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 
 ## Expert Profile 接入
 
-`expert-profile` 是当前面向数字化系统接入的业务型 Agent，用来做“传入专家主页 URL，返回专家结构化数据”。
+`expert-profile` 是当前面向数字化系统接入的业务型 Agent，用来做「传入专家主页 URL，返回 18 个结构化字段」。
+输出形态与数字化系统「专家主页同步」弹窗的勾选项一一对应，业务方拿到后可以直接填充弹窗右栏做左右对比同步。
 
 当前实现状态：
 
@@ -209,6 +212,7 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 - 内层专家抽取脚本也使用阿里云百炼 `glm-5`
 - `Web of Science` 作者页支持专用脚本路径，不走普通 HTML 抓取
 - 同步模式下任务失败会尽快返回，不会一直阻塞等待
+- 输出包含 15 个基础字段 + `social_positions`（社会兼职）/ `journal_resources`（期刊资源）/ `tags`（四分类枚举标签）
 
 ### 输入
 
@@ -222,10 +226,63 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 
 `POST /v1/agent-tasks` 返回的是平台统一任务响应，不是纯业务 JSON。
 
+如果你不希望业务系统理解平台任务协议，推荐直接使用新增的业务包装接口：
+
+- `POST /v1/expert-profiles/extract`
+
 对 `expert-profile` 来说，真正的专家数据位于：
 
 - `result.structured`
 - 同步模式下也会出现在 `runResult.result.structured`
+
+### 推荐业务接口
+
+```bash
+curl -X POST http://127.0.0.1:3000/v1/expert-profiles/extract \
+  -H 'Authorization: Bearer your-token' \
+  -H 'content-type: application/json' \
+  -d '{
+    "url": "https://www.webofscience.com/wos/author/record/917221",
+    "requestId": "expert-profile-biz-1"
+  }'
+```
+
+如果服务端配置了 `EXPERT_PROFILE_API_TOKEN`，调用时还需要带：
+
+```text
+Authorization: Bearer <token>
+```
+
+返回示例：
+
+```json
+{
+  "success": true,
+  "status": "SUCCEEDED",
+  "requestId": "expert-profile-biz-1",
+  "taskId": "task_xxx",
+  "runId": "run_xxx",
+  "promptTokens": 3500,
+  "completionTokens": 420,
+  "totalTokens": 3920,
+  "data": {
+    "name": "Anh Tuan Hoang",
+    "institution": "Dong Nai Technol Univ",
+    "research_areas": ["Energy & Fuels", "Engineering"],
+    "social_positions": [],
+    "journal_resources": [],
+    "tags": {
+      "academic_honors": [],
+      "institution_tier": [],
+      "experiences": [],
+      "others": []
+    }
+  },
+  "error": null
+}
+```
+
+完整的字段说明、`tags` 枚举白名单与前端渲染建议见 [docs/expert-profile-api-simple.md](./docs/expert-profile-api-simple.md)。
 
 ### 专家抽取示例
 
@@ -264,6 +321,14 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
       "name": "Anh Tuan Hoang",
       "institution": "Dong Nai Technol Univ",
       "research_areas": ["Energy & Fuels", "Engineering"],
+      "social_positions": [],
+      "journal_resources": [],
+      "tags": {
+        "academic_honors": [],
+        "institution_tier": [],
+        "experiences": [],
+        "others": []
+      },
       "_meta": {
         "source_url": "https://www.webofscience.com/wos/author/record/917221",
         "extracted_at": "2026-04-14T08:00:00.000Z"
@@ -272,6 +337,8 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
   },
   "runResult": {
     "usage": {
+      "inputTokens": 3500,
+      "outputTokens": 420,
       "provider": "aliyun-bailian",
       "model": "glm-5"
     }

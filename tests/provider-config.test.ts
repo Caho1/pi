@@ -29,6 +29,7 @@ describe("platform runtime config", () => {
     process.env.ALIYUN_BAILIAN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
     process.env.ALIYUN_BAILIAN_MODEL_ID = "glm-5";
     process.env.ALIYUN_BAILIAN_API_KEY = "secret-bailian";
+    process.env.EXPERT_PROFILE_API_TOKEN = "expert-secret";
 
     const config = loadPlatformRuntimeConfig();
 
@@ -37,6 +38,7 @@ describe("platform runtime config", () => {
     expect(config.providers.aliyunBailian.modelId).toBe("glm-5");
     expect(config.providers.aliyunBailian.api).toBe("openai-completions");
     expect(config.providers.aliyunBailian.apiKeyEnvVar).toBe("ALIYUN_BAILIAN_API_KEY");
+    expect(config.businessApi.expertProfileToken).toBe("expert-secret");
   });
 
   test("loads right-codes provider configuration from project .env", async () => {
@@ -50,6 +52,7 @@ describe("platform runtime config", () => {
           "ALIYUN_BAILIAN_API_KEY=secret-bailian-dotenv",
           "ALIYUN_BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1",
           "ALIYUN_BAILIAN_MODEL_ID=glm-5",
+          "EXPERT_PROFILE_API_TOKEN=expert-secret-dotenv",
           "RIGHT_CODES_API_KEY=secret-from-dotenv",
           "RIGHT_CODES_BASE_URL=https://right.codes/codex/v1",
           "RIGHT_CODES_MODEL_ID=gpt-5.4",
@@ -59,6 +62,7 @@ describe("platform runtime config", () => {
       delete process.env.ALIYUN_BAILIAN_API_KEY;
       delete process.env.ALIYUN_BAILIAN_BASE_URL;
       delete process.env.ALIYUN_BAILIAN_MODEL_ID;
+      delete process.env.EXPERT_PROFILE_API_TOKEN;
       delete process.env.RIGHT_CODES_API_KEY;
       delete process.env.RIGHT_CODES_BASE_URL;
       delete process.env.RIGHT_CODES_MODEL_ID;
@@ -72,6 +76,7 @@ describe("platform runtime config", () => {
       expect(config.providers.aliyunBailian.enabled).toBe(true);
       expect(config.providers.aliyunBailian.modelId).toBe("glm-5");
       expect(config.providers.aliyunBailian.api).toBe("openai-completions");
+      expect(config.businessApi.expertProfileToken).toBe("expert-secret-dotenv");
       expect(process.env.RIGHT_CODES_API_KEY).toBe("secret-from-dotenv");
       expect(config.providers.rightCodes.enabled).toBe(true);
       expect(config.providers.rightCodes.modelId).toBe("gpt-5.4");

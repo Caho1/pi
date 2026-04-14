@@ -39,6 +39,43 @@ import { InlineTaskQueue, type TaskQueue } from "./task-queue.js";
 import { TaskExecutionCoordinator } from "./task-runner.js";
 import { FileSystemSpecVersionStore } from "./spec-version-store.js";
 
+interface SubmittedTask {
+  record: TaskRecord;
+  httpStatus: number;
+  includeRunResult: boolean;
+}
+
+interface ExpertProfileExtractRequest {
+  url?: string;
+  requestId?: string;
+  tenantId?: string;
+  sourceSystem?: string;
+  timeoutMs?: number;
+  approvalToken?: string;
+}
+
+function readHeaderToken(headers: Record<string, unknown>): string | undefined {
+  const authorization = headers.authorization;
+  if (typeof authorization === "string") {
+    const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+    if (bearerMatch?.[1]?.trim()) {
+      return bearerMatch[1].trim();
+    }
+  }
+
+  const xApiToken = headers["x-api-token"];
+  if (typeof xApiToken === "string" && xApiToken.trim().length > 0) {
+    return xApiToken.trim();
+  }
+
+  const xExpertProfileToken = headers["x-expert-profile-token"];
+  if (typeof xExpertProfileToken === "string" && xExpertProfileToken.trim().length > 0) {
+    return xExpertProfileToken.trim();
+  }
+
+  return undefined;
+}
+
 export async function buildControlPlaneApp(options?: {
   runtimeRoot?: string;
   registryRoot?: string;
@@ -120,10 +157,20 @@ export async function buildControlPlaneApp(options?: {
     };
   }
 
-  const app = Fastify({ logger: false });
+  function serializeSubmittedTask(submitted: SubmittedTask) {
+    if (submitted.includeRunResult && submitted.record.result) {
+      return {
+        ...serializeTask(submitted.record),
+        runResult: submitted.record.result,
+      };
+    }
 
-  app.post("/v1/agent-tasks", async (request, reply) => {
-    const body = request.body as CreateTaskRequest;
+    return serializeTask(submitted.record);
+  }
+
+  // 把通用任务提交流程收敛到一个函数里，避免平台通用接口和业务包装接口
+  // 各自复制一份“创建任务 -> 入队 -> 等待 -> 取结果”的逻辑，后续维护更稳。
+  async function submitTask(body: CreateTaskRequest): Promise<SubmittedTask> {
     validateTaskRequest(body);
 
     const fingerprint = createIdempotencyFingerprint({
@@ -134,7 +181,11 @@ export async function buildControlPlaneApp(options?: {
     const existing = await repository.findByFingerprint(fingerprint);
     if (existing) {
       metrics.increment("task_deduped_total");
-      return reply.code(202).send(serializeTask(existing));
+      return {
+        record: existing,
+        httpStatus: 202,
+        includeRunResult: false,
+      };
     }
 
     const taskId = randomId("task");
@@ -167,7 +218,11 @@ export async function buildControlPlaneApp(options?: {
       };
       await repository.save(rejectedRecord);
       metrics.increment("task_rejected_total");
-      return reply.code(202).send(serializeTask(rejectedRecord));
+      return {
+        record: rejectedRecord,
+        httpStatus: 202,
+        includeRunResult: false,
+      };
     }
 
     const record: TaskRecord = {
@@ -191,16 +246,176 @@ export async function buildControlPlaneApp(options?: {
         console.error("Task completion failed", taskId, error);
       });
     }
-    const freshRecord = (await repository.get(taskId)) ?? record;
 
-    if (body.triggerType === "sync" && freshRecord.result) {
-      return reply.code(200).send({
-        ...serializeTask(freshRecord),
-        runResult: freshRecord.result,
-      });
+    const freshRecord = (await repository.get(taskId)) ?? record;
+    const includeRunResult = body.triggerType === "sync" && Boolean(freshRecord.result);
+
+    return {
+      record: freshRecord,
+      httpStatus: includeRunResult ? 200 : 202,
+      includeRunResult,
+    };
+  }
+
+  function validateExpertProfileExtractRequest(
+    body: Partial<ExpertProfileExtractRequest>,
+  ): asserts body is ExpertProfileExtractRequest & { url: string } {
+    if (!body.url || typeof body.url !== "string" || body.url.trim().length === 0) {
+      throw new Error("Missing required field 'url'");
     }
 
-    return reply.code(202).send(serializeTask(freshRecord));
+    if (body.timeoutMs !== undefined && (!Number.isFinite(body.timeoutMs) || body.timeoutMs <= 0)) {
+      throw new Error("Field 'timeoutMs' must be a positive number");
+    }
+  }
+
+  // 这层薄包装把平台协议细节藏在控制面内部：上游业务系统只传 URL，
+  // 控制面仍然创建标准任务，从而保留原有的审计、trace 和 artifact 落盘能力。
+  function buildExpertProfileTaskRequest(
+    body: ExpertProfileExtractRequest & { url: string },
+  ): {
+    requestId: string;
+    taskRequest: CreateTaskRequest;
+  } {
+    const requestId = body.requestId?.trim() || randomId("expert-profile");
+    const approvalToken = body.approvalToken?.trim() || `business-wrapper:${requestId}`;
+
+    return {
+      requestId,
+      taskRequest: {
+        idempotencyKey: requestId,
+        tenantId: body.tenantId?.trim() || "digit-system",
+        taskType: "expert.profile.extract",
+        agentType: "expert-profile",
+        priority: "p1",
+        triggerType: "sync",
+        timeoutMs: body.timeoutMs ?? 180_000,
+        input: {
+          prompt: body.url.trim(),
+          metadata: {
+            approvalToken,
+          },
+        },
+        trace: {
+          correlationId: requestId,
+          sourceSystem: body.sourceSystem?.trim() || "expert-profile-business-api",
+        },
+      },
+    };
+  }
+
+  function mapExpertProfileResponseStatus(record: TaskRecord): number {
+    switch (record.status) {
+      case "SUCCEEDED":
+      case "PARTIAL":
+        return 200;
+      case "REJECTED":
+        return 400;
+      case "TIMED_OUT":
+        return 504;
+      case "FAILED":
+        return 502;
+      case "CANCELLED":
+      case "CANCELLING":
+        return 409;
+      default:
+        return 202;
+    }
+  }
+
+  function extractBusinessTokenUsage(record?: TaskRecord) {
+    const promptTokens = record?.result?.usage?.inputTokens ?? 0;
+    const completionTokens = record?.result?.usage?.outputTokens ?? 0;
+
+    return {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+    };
+  }
+
+  function serializeExpertProfileResponse(input: {
+    requestId: string;
+    record?: TaskRecord;
+    validationError?: string;
+    authError?: string;
+  }) {
+    if (!input.record) {
+      return {
+        success: false,
+        status: null,
+        requestId: input.requestId,
+        taskId: null,
+        runId: null,
+        ...extractBusinessTokenUsage(),
+        data: null,
+        error: {
+          stage: "validation",
+          code: input.authError ? "unauthorized" : "invalid_request",
+          message: input.authError ?? input.validationError ?? "Invalid request",
+          retryable: false,
+        },
+      };
+    }
+
+    return {
+      success: input.record.status === "SUCCEEDED" || input.record.status === "PARTIAL",
+      status: input.record.status,
+      requestId: input.requestId,
+      taskId: input.record.taskId,
+      runId: input.record.latestRunId ?? null,
+      ...extractBusinessTokenUsage(input.record),
+      data: input.record.result?.result?.structured ?? null,
+      error: input.record.error ?? input.record.result?.error ?? null,
+    };
+  }
+
+  const app = Fastify({ logger: false });
+
+  app.post("/v1/agent-tasks", async (request, reply) => {
+    const body = request.body as CreateTaskRequest;
+    const submitted = await submitTask(body);
+    return reply.code(submitted.httpStatus).send(serializeSubmittedTask(submitted));
+  });
+
+  app.post("/v1/expert-profiles/extract", async (request, reply) => {
+    const body = request.body as ExpertProfileExtractRequest;
+    const configuredToken = runtimeConfig.businessApi.expertProfileToken;
+    if (configuredToken) {
+      // 业务接口默认使用共享 token 做最小鉴权，避免上游系统直接裸调用。
+      const requestToken = readHeaderToken(request.headers as Record<string, unknown>);
+      if (!requestToken || requestToken !== configuredToken) {
+        return reply.code(401).send(
+          serializeExpertProfileResponse({
+            requestId: body.requestId?.trim() || randomId("expert-profile"),
+            authError: "Unauthorized: invalid or missing API token",
+          }),
+        );
+      }
+    }
+
+    try {
+      validateExpertProfileExtractRequest(body);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return reply.code(400).send(
+        serializeExpertProfileResponse({
+          requestId: body.requestId?.trim() || randomId("expert-profile"),
+          validationError: message,
+        }),
+      );
+    }
+
+    const { requestId, taskRequest } = buildExpertProfileTaskRequest(body);
+    const submitted = await submitTask(taskRequest);
+    return reply
+      .code(mapExpertProfileResponseStatus(submitted.record))
+      .send(
+        serializeExpertProfileResponse({
+          requestId,
+          record: submitted.record,
+        }),
+      );
   });
 
   app.get("/v1/agent-tasks/:taskId", async (request, reply) => {

@@ -27,6 +27,11 @@
 - 返回结构化结果
 - 归档 artifacts / trace / audit
 
+对于固定业务场景，也可以暴露更薄的业务包装接口。
+当前已提供：
+
+- `POST /v1/expert-profiles/extract`
+
 业务系统负责：
 
 - 创建业务任务
@@ -248,6 +253,73 @@ http://127.0.0.1:3000
 ```
 
 如果不传版本，平台会使用当前激活版本。
+
+## 6.4 Expert Profile 业务接口
+
+### `POST /v1/expert-profiles/extract`
+
+面向数字化系统「专家主页同步」功能的薄包装接口。调用方只传专家主页 URL，平台内部会自动转换成 `expert.profile.extract` 任务并同步等待结果；`data` 里的 18 个字段与「专家主页同步」弹窗右栏的勾选项一一对应。
+
+请求示例：
+
+```json
+{
+  "url": "https://www.webofscience.com/wos/author/record/917221",
+  "requestId": "expert-profile-biz-1"
+}
+```
+
+如果服务端配置了 `EXPERT_PROFILE_API_TOKEN`，调用时还需要带请求头：
+
+```text
+Authorization: Bearer <token>
+```
+
+响应示例：
+
+```json
+{
+  "success": true,
+  "status": "SUCCEEDED",
+  "requestId": "expert-profile-biz-1",
+  "taskId": "task_xxx",
+  "runId": "run_xxx",
+  "promptTokens": 3500,
+  "completionTokens": 420,
+  "totalTokens": 3920,
+  "data": {
+    "name": "Anh Tuan Hoang",
+    "institution": "Dong Nai Technol Univ",
+    "research_areas": ["Energy & Fuels", "Engineering"],
+    "social_positions": [],
+    "journal_resources": [],
+    "tags": {
+      "academic_honors": [],
+      "institution_tier": [],
+      "experiences": [],
+      "others": []
+    }
+  },
+  "error": null
+}
+```
+
+字段说明：
+
+- `url`
+  必填。专家主页 URL，也可传本地 HTML 文件路径用于离线测试
+- `requestId`
+  可选。业务幂等键；如果不传，平台会自动生成
+- `promptTokens` / `completionTokens` / `totalTokens`
+  从模型执行结果里映射出的输入、输出和总 token 数
+- `data`
+  业务层结构化专家数据，本质上等于通用任务响应里的 `result.structured`。包含 18 个字段：15 个基础字段 + `social_positions`（社会兼职，字符串数组）+ `journal_resources`（期刊资源，字符串数组）+ `tags`（四分类枚举对象）
+- `tags`
+  固定四键对象：`academic_honors` / `institution_tier` / `experiences` / `others`，每个子字段是一个字符串数组，值只会来自业务方预定义的枚举白名单，非法值会被后处理静默丢弃
+- `error`
+  失败时返回平台错误对象
+
+完整的字段映射表、`tags` 枚举白名单与前端渲染建议见 [docs/expert-profile-api-simple.md](./docs/expert-profile-api-simple.md)。
 
 ## 7. Skill 配置说明
 

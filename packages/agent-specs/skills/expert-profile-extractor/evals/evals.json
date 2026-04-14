@@ -5,21 +5,21 @@
       "id": 0,
       "name": "chinese-faculty-homepage",
       "prompt": "帮我解析一下这位老师的主页，我要抽取结构化信息，最好是 JSON 格式：https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm",
-      "expected_output": "A JSON object with 15 fields. At minimum: name='杨建涛', institution='上海理工大学', college_department contains '健康科学与工程学院', academic_title='副教授', phone='021-55270127', email='jty@usst.edu.cn', country_region='中国', avatar_url is a non-null URL, research_areas is a non-empty list that includes a biomechanics/robotics/wearable sensor term. gender=null (not inferable), birth_date=null.",
+      "expected_output": "A JSON object with 18 fields (15 base + social_positions, journal_resources, tags). At minimum: name='杨建涛', institution='上海理工大学', college_department contains '健康科学与工程学院', academic_title='副教授', phone='021-55270127', email='jty@usst.edu.cn', country_region='中国', avatar_url is a non-null URL, research_areas is a non-empty list that includes a biomechanics/robotics/wearable sensor term. gender=null (not inferable), birth_date=null. social_positions, journal_resources, and tags may each be empty if the page has no evidence.",
       "files": []
     },
     {
       "id": 1,
       "name": "middle-eastern-faculty-homepage",
       "prompt": "Extract the profile info from this faculty page into JSON: https://www.zu.ac.ae/main/en/colleges/colleges/__college_of_technological_innovation/faculty_and_staff/_auh/_computing-and-applied-technology/_profiles/monther_aldwairi",
-      "expected_output": "A JSON object with 15 fields. At minimum: name contains 'Monther Aldwairi', institution='Zayed University', college_department contains 'College of Technological Innovation', academic_title='Professor', phone='+971 2 599 3238', country_region='阿联酋', avatar_url is a non-null URL, research_areas is a non-empty list mentioning security/AI. email may be null (page uses contact form).",
+      "expected_output": "A JSON object with 18 fields (15 base + social_positions, journal_resources, tags). At minimum: name contains 'Monther Aldwairi', institution='Zayed University', college_department contains 'College of Technological Innovation', academic_title='Professor', phone='+971 2 599 3238', country_region='阿联酋', avatar_url is a non-null URL, research_areas is a non-empty list mentioning security/AI. email may be null (page uses contact form). social_positions, journal_resources, and tags may each be empty if the page has no evidence — that is acceptable and expected.",
       "files": []
     },
     {
       "id": 2,
       "name": "partial-field-request",
       "prompt": "从 https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm 这个页面里，只告诉我这位老师的邮箱、研究方向和头像链接就行。",
-      "expected_output": "Three fields returned clearly: email='jty@usst.edu.cn', research_directions or research_areas list populated with biomechanics/rehab-robotics topics, avatar_url pointing to a real image URL under jiankang.usst.edu.cn. Acceptable to return the full 15-field JSON and highlight the three requested fields.",
+      "expected_output": "Three fields returned clearly: email='jty@usst.edu.cn', research_directions or research_areas list populated with biomechanics/rehab-robotics topics, avatar_url pointing to a real image URL under jiankang.usst.edu.cn. Acceptable to return the full 18-field JSON and highlight the three requested fields.",
       "files": []
     }
   ]

@@ -19,7 +19,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 import html_cleaner
 import rules
 import webofscience
-from schema import ALL_FIELDS, LLM_FIELDS, ExpertProfile, ProfileMeta
+from schema import (
+    ALL_FIELDS,
+    LIST_FIELDS,
+    LLM_FIELDS,
+    OBJECT_FIELDS,
+    ExpertProfile,
+    ProfileMeta,
+    empty_tags,
+    is_empty_tags,
+    sanitize_tags,
+)
 
 
 USER_AGENT = (
@@ -120,6 +130,20 @@ def _derive_preferred(email: Optional[str], phone: Optional[str]) -> Optional[st
     return None
 
 
+def _default_value(field: str):
+    if field in LIST_FIELDS:
+        return []
+    if field in OBJECT_FIELDS:
+        return empty_tags()
+    return None
+
+
+def _is_empty(field: str, value) -> bool:
+    if field in OBJECT_FIELDS:
+        return is_empty_tags(value)
+    return value in (None, "", [])
+
+
 def _merge(rule_fields: dict, llm_fields: dict) -> tuple[dict, list, list]:
     """Rule-layer values win; LLM fills gaps and provides non-rule fields."""
     merged: dict = {}
@@ -128,14 +152,18 @@ def _merge(rule_fields: dict, llm_fields: dict) -> tuple[dict, list, list]:
     for f in LLM_FIELDS:
         rv = rule_fields.get(f)
         lv = llm_fields.get(f)
-        if rv not in (None, "", []):
+        if f in OBJECT_FIELDS:
+            # Sanitize against the enum whitelist before accepting.
+            lv = sanitize_tags(lv)
+
+        if not _is_empty(f, rv):
             merged[f] = rv
             from_rule.append(f)
-        elif lv not in (None, "", []):
+        elif not _is_empty(f, lv):
             merged[f] = lv
             from_llm.append(f)
         else:
-            merged[f] = [] if f in ("research_areas", "research_directions") else None
+            merged[f] = _default_value(f)
 
     # Rule-only fields
     for f in ("email", "phone", "avatar_url"):
@@ -172,8 +200,7 @@ def extract_profile(
     merged, from_rule, from_llm = _merge(rule_fields, llm_fields)
     merged["contact_preferred"] = _derive_preferred(merged.get("email"), merged.get("phone"))
 
-    missing = [f for f in ALL_FIELDS
-               if merged.get(f) in (None, "", [])]
+    missing = [f for f in ALL_FIELDS if _is_empty(f, merged.get(f))]
 
     meta = ProfileMeta(
         source_url=final_url,
@@ -188,7 +215,7 @@ def extract_profile(
 
 
 def _cli(argv: Optional[list[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description="Extract expert profile into a 15-field JSON.")
+    ap = argparse.ArgumentParser(description="Extract expert profile into an 18-field JSON.")
     ap.add_argument("source", help="URL, local HTML path, or a file of URLs if --batch")
     ap.add_argument("--out", help="Write output to this file (default: stdout)")
     ap.add_argument("--source-url", help="When source is a local HTML, override the URL used for avatar resolution / TLD")

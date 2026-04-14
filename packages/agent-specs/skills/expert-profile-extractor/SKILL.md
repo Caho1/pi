@@ -1,11 +1,13 @@
 ---
 name: expert-profile-extractor
-description: Extract structured expert/faculty profile data from scholar homepages, faculty staff pages, researcher profile URLs, or HTML files. Produces a strict 15-field JSON with name, gender, birth date, country/region, institution, college/department, research areas, research directions, academic title, administrative title, phone, email, preferred contact, bio, and avatar URL. Use this skill whenever the user asks to extract, scrape, parse, or collect info from an expert homepage, faculty page, researcher profile, teacher profile, scholar bio page, professor page, or similar — even if they don't say "extract" explicitly, e.g. "get the info from this page", "parse this URL", "what does this professor's page say", "build a profile JSON from this link".
+description: Extract structured expert/faculty profile data from scholar homepages, faculty staff pages, researcher profile URLs, or HTML files. Produces a strict 18-field JSON: name, gender, birth date, country/region, institution, college/department, research areas, research directions, academic title, administrative title, phone, email, preferred contact, bio, avatar URL, social positions (社会兼职), journal resources (期刊资源), and a fixed-taxonomy tag object (标签). Use this skill whenever the user asks to extract, scrape, parse, or collect info from an expert homepage, faculty page, researcher profile, teacher profile, scholar bio page, professor page, or similar — even if they don't say "extract" explicitly, e.g. "get the info from this page", "parse this URL", "what does this professor's page say", "build a profile JSON from this link".
 ---
 
 # Expert Profile Extractor
 
-Extract a **fixed 15-field JSON** from an expert/faculty/researcher homepage. The profiles come in wildly different layouts (Chinese universities, Middle Eastern universities, personal pages, institutional directories) so the extractor combines deterministic HTML rules with an LLM fallback to stay robust across structures.
+Extract a **fixed 18-field JSON** from an expert/faculty/researcher homepage. The profiles come in wildly different layouts (Chinese universities, Middle Eastern universities, personal pages, institutional directories) so the extractor combines deterministic HTML rules with an LLM fallback to stay robust across structures.
+
+The output is shaped to feed the 数字化系统「专家主页同步」弹窗 right column — each field maps directly to a checkbox in that popup.
 
 ## When to use this skill
 
@@ -40,6 +42,14 @@ Always return this exact shape. Missing fields are `null` (or `[]` for list fiel
   "contact_preferred": "email | phone | other | null",
   "bio": "string | null",
   "avatar_url": "string | null (absolute URL)",
+  "social_positions": ["string", ...],
+  "journal_resources": ["string", ...],
+  "tags": {
+    "academic_honors": ["院士头衔 | 校级 | 处级 | 科协会领导 | 学科带头人", ...],
+    "institution_tier": ["QS Top 50 | QS Top 100 | QS Top 200 | QS Top 500 | QS Top 1000 | 985 | 211 | 双一流 | 其它", ...],
+    "experiences": ["海归 | 有过博士后经历 | 参与学术社团 | 曾担任学术职务", ...],
+    "others": ["顶尖学术奖项 | 导师职务 | 深度培训经历 | 一般培训经历 | 兼办 | 外联 | 院校", ...]
+  },
   "_meta": {
     "source_url": "string",
     "extracted_at": "ISO-8601 timestamp",
@@ -49,6 +59,8 @@ Always return this exact shape. Missing fields are `null` (or `[]` for list fiel
   }
 }
 ```
+
+The four `tags` categories are **enum-constrained** — any value the LLM returns outside the allowed list is silently dropped during post-processing. See `scripts/schema.py::TAG_ENUMS` for the exact whitelist.
 
 ## How to run
 
@@ -152,6 +164,9 @@ This is **intentional**, not arbitrary — review before changing:
 | contact_preferred | derived | Deterministic from email/phone presence |
 | bio | LLM (summarize) | Compress to ≤300 chars, keep education + tenure + notable roles |
 | avatar_url | rule primary | LLM hallucinates URLs — always prefer DOM-anchored |
+| social_positions | LLM only | Concurrent society / association / committee roles. Free-form list (not enum). Do not include the person's primary institutional role — that belongs in `admin_title`. |
+| journal_resources | LLM only | Editorial / reviewer roles at journals & conferences. Each item combines venue + role (`"《计算机学报》编委"`). Excludes the person's own publications. |
+| tags | LLM + post-process whitelist | Four enum-constrained lists used by the business popup as checkboxes. Unknown values dropped in `sanitize_tags`. Leave empty rather than guess. |
 
 ## Gotchas
 
