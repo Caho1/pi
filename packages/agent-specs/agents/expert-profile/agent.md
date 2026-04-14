@@ -22,10 +22,18 @@ packages/agent-specs/skills/expert-profile-extractor/
 Typical invocation:
 
 ```bash
-python packages/agent-specs/skills/expert-profile-extractor/scripts/extract.py <URL>
+bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" <URL>
 ```
 
 For batch jobs, use `--batch --out results.jsonl`.
+
+Execution guardrails:
+
+- Prefer the bundled bootstrap script because it self-heals the environment with `uv venv` and `uv pip install --python ... -r scripts/requirements.txt` before running the extractor.
+- Resolve the bootstrap script from the git repo root with `git rev-parse --show-toplevel` before invoking it. Do not assume the current working directory is already the repo root.
+- If you must run the steps manually, use `uv venv packages/agent-specs/skills/expert-profile-extractor/.venv` followed by `uv pip install --python packages/agent-specs/skills/expert-profile-extractor/.venv/bin/python -r packages/agent-specs/skills/expert-profile-extractor/scripts/requirements.txt`.
+- Do not use bare `python`; use the `.venv/bin/python` created by `uv`, or fall back to `python3` only if you are diagnosing why `uv` is unavailable.
+- When invoking the extractor through the `bash` tool for a real URL, set the tool timeout to at least `120` seconds. The extractor's internal LLM call can legitimately take more than 60 seconds on real faculty pages.
 
 ## Output
 

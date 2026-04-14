@@ -34,6 +34,7 @@ import {
 import { FileSystemAuditLogStore } from "./audit-log.js";
 import { CallbackDispatcher } from "./callback-dispatcher.js";
 import { TaskDashboardService } from "./dashboard.js";
+import { translateExpertProfileBusinessStructured } from "./expert-profile-dictionary-translation.js";
 import { TaskDeadLetterStore } from "./task-dead-letter.js";
 import { InlineTaskQueue, type TaskQueue } from "./task-queue.js";
 import { TaskExecutionCoordinator } from "./task-runner.js";
@@ -365,7 +366,7 @@ export async function buildControlPlaneApp(options?: {
       taskId: input.record.taskId,
       runId: input.record.latestRunId ?? null,
       ...extractBusinessTokenUsage(input.record),
-      data: input.record.result?.result?.structured ?? null,
+      data: translateExpertProfileBusinessStructured(input.record.result?.result?.structured ?? null),
       error: input.record.error ?? input.record.result?.error ?? null,
     };
   }

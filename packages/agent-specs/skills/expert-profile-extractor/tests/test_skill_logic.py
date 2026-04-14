@@ -1,5 +1,6 @@
 import sys
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -7,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import extract  # type: ignore
+import llm_client  # type: ignore
 import rules  # type: ignore
 import webofscience  # type: ignore
 
@@ -109,6 +111,26 @@ class ExpertProfileSkillLogicTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "requires an active session"):
             webofscience.extract_profile("https://www.webofscience.com/wos/author/record/917221")
+
+    @patch("llm_client.OpenAI")
+    def test_llm_client_sets_explicit_timeout_and_disables_retries(self, mock_openai):
+        with patch.dict(
+            os.environ,
+            {
+                "EXPERT_EXTRACTOR_API_KEY": "test-key",
+                "EXPERT_EXTRACTOR_BASE_URL": "https://example.com/v1",
+                "EXPERT_EXTRACTOR_TIMEOUT_SECONDS": "20",
+            },
+            clear=False,
+        ):
+            llm_client._client()
+
+        mock_openai.assert_called_once_with(
+            base_url="https://example.com/v1",
+            api_key="test-key",
+            timeout=20.0,
+            max_retries=0,
+        )
 
 
 if __name__ == "__main__":

@@ -141,6 +141,11 @@ token 错误时返回 `401`，`error.code = "unauthorized"`。
 
 其余 `taskId` / `runId` / `*Tokens` 仅用于排障和计费核对，业务端可忽略。
 
+兼容性说明：
+
+- 如果底层抽取结果里这几类字段返回的是业务字典编码值，而不是最终展示文案，业务接口会在返回 `data` 前自动转成标签
+- 当前已覆盖的字典字段包括：职称（`professional` / `academic_title`）、研究领域（`domain` / `research_areas`）、头衔（`title`）、国家地区（`country` / `country_region`）
+
 ---
 
 ## 6. `data` 字段与弹窗 UI 的映射

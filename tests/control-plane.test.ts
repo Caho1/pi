@@ -390,6 +390,142 @@ describe("control plane API", () => {
     await app.close();
   });
 
+  test("expert profile business route translates coded dictionary fields into labels", async () => {
+    const app = await buildControlPlaneApp({
+      runtimeRoot: "runtime/test-control-plane-expert-profile",
+      processor: {
+        async process(task) {
+          return {
+            taskId: task.taskId,
+            runId: "run-expert-profile-dicts",
+            specId: task.compiledSpec.specId,
+            status: "succeeded",
+            completion: {
+              barrier: "settled-barrier",
+              promptResolved: true,
+              terminalEventSeen: true,
+              noPendingBackgroundWork: true,
+              finalizerPassed: true,
+            },
+            result: {
+              submissionMode: "submit_result",
+              structured: {
+                professional: 2,
+                domain: 8,
+                title: 9,
+                country: "9",
+              },
+            },
+            artifacts: [],
+            usage: {
+              inputTokens: 20,
+              outputTokens: 10,
+            },
+            timestamps: {
+              startedAt: new Date().toISOString(),
+              finishedAt: new Date().toISOString(),
+            },
+          };
+        },
+        async cancel() {
+          return false;
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/expert-profiles/extract",
+      payload: {
+        url: "https://example.edu/faculty/wangwu",
+        requestId: "expert-biz-dicts-1",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      status: "SUCCEEDED",
+      requestId: "expert-biz-dicts-1",
+      data: {
+        professional: "副教授",
+        domain: "人工智能",
+        title: ["院士", "IEEE Fellow"],
+        country: "美国",
+      },
+      error: null,
+    });
+
+    await app.close();
+  });
+
+  test("expert profile business route translates docs-facing coded fields into labels", async () => {
+    const app = await buildControlPlaneApp({
+      runtimeRoot: "runtime/test-control-plane-expert-profile",
+      processor: {
+        async process(task) {
+          return {
+            taskId: task.taskId,
+            runId: "run-expert-profile-doc-fields",
+            specId: task.compiledSpec.specId,
+            status: "succeeded",
+            completion: {
+              barrier: "settled-barrier",
+              promptResolved: true,
+              terminalEventSeen: true,
+              noPendingBackgroundWork: true,
+              finalizerPassed: true,
+            },
+            result: {
+              submissionMode: "submit_result",
+              structured: {
+                academic_title: "2",
+                research_areas: [7, "8"],
+                country_region: 9,
+              },
+            },
+            artifacts: [],
+            usage: {
+              inputTokens: 20,
+              outputTokens: 10,
+            },
+            timestamps: {
+              startedAt: new Date().toISOString(),
+              finishedAt: new Date().toISOString(),
+            },
+          };
+        },
+        async cancel() {
+          return false;
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/expert-profiles/extract",
+      payload: {
+        url: "https://example.edu/faculty/zhaoliu",
+        requestId: "expert-biz-dicts-2",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      status: "SUCCEEDED",
+      requestId: "expert-biz-dicts-2",
+      data: {
+        academic_title: "副教授",
+        research_areas: ["计算机科学与技术", "人工智能"],
+        country_region: "美国",
+      },
+      error: null,
+    });
+
+    await app.close();
+  });
+
   test("expert profile business route accepts bearer token when api token is configured", async () => {
     process.env.EXPERT_PROFILE_API_TOKEN = "secret-token";
 

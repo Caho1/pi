@@ -48,9 +48,24 @@ def _env(*names: str, default: Optional[str] = None) -> Optional[str]:
     return default
 
 
+def _llm_timeout_seconds() -> float:
+    raw = _env(
+        "EXPERT_EXTRACTOR_LLM_TIMEOUT_SECONDS",
+        "EXPERT_EXTRACTOR_TIMEOUT_SECONDS",
+        default="90",
+    )
+    try:
+        return float(raw or "90")
+    except ValueError:
+        return 90.0
+
+
 def _client() -> "OpenAI":
     if OpenAI is None:
-        raise RuntimeError("openai package not installed; run pip install -r scripts/requirements.txt")
+        raise RuntimeError(
+            "openai package not installed; bootstrap the extractor env with "
+            "'uv venv .venv && uv pip install --python .venv/bin/python -r scripts/requirements.txt'"
+        )
     base_url = _env(
         "EXPERT_EXTRACTOR_BASE_URL",
         "ALIYUN_BAILIAN_BASE_URL",
@@ -68,7 +83,12 @@ def _client() -> "OpenAI":
         raise RuntimeError(
             "Set EXPERT_EXTRACTOR_API_KEY, ALIYUN_BAILIAN_API_KEY, DASHSCOPE_API_KEY, or RIGHT_CODES_API_KEY to call the LLM."
         )
-    return OpenAI(base_url=base_url, api_key=api_key)
+    return OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=_llm_timeout_seconds(),
+        max_retries=0,
+    )
 
 
 def _model() -> str:
