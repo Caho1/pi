@@ -59,12 +59,14 @@
 
 ### 内置 Agent
 
-当前仓库内已提供两个示例 Agent：
+当前仓库内已提供这些内置 Agent：
 
 - `reviewer`
   默认对应任务类型 `code.review`
 - `requirement-analyst`
   默认对应任务类型 `requirement.analysis`
+- `expert-profile`
+  默认用于专家主页抽取场景，对外输入 URL 或本地 HTML，输出结构化专家数据
 
 ### 已实现的治理能力
 
@@ -107,13 +109,23 @@ pnpm install
 
 ### 2. 配置环境变量
 
-最少需要提供模型提供方配置：
+最少需要提供模型提供方配置。
+
+如果你要使用 `expert-profile`，当前推荐配置是阿里云百炼 `glm-5`：
+
+```bash
+export ALIYUN_BAILIAN_API_KEY='你的密钥'
+export ALIYUN_BAILIAN_BASE_URL='https://dashscope.aliyuncs.com/compatible-mode/v1'
+export ALIYUN_BAILIAN_MODEL_ID='glm-5'
+export PORT=3000
+```
+
+其他 Agent 如需继续使用 `right-codes`，也可以单独提供：
 
 ```bash
 export RIGHT_CODES_API_KEY='你的密钥'
 export RIGHT_CODES_BASE_URL='https://right.codes/codex/v1'
 export RIGHT_CODES_MODEL_ID='gpt-5-codex'
-export PORT=3000
 ```
 
 可选配置：
@@ -194,6 +206,92 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 - `status`
 - `runResult`
 - `artifacts`
+
+## Expert Profile 接入
+
+`expert-profile` 是当前面向数字化系统接入的业务型 Agent，用来做“传入专家主页 URL，返回专家结构化数据”。
+
+当前实现状态：
+
+- 外层调度模型使用阿里云百炼 `glm-5`
+- 内层专家抽取脚本也使用阿里云百炼 `glm-5`
+- `Web of Science` 作者页支持专用脚本路径，不走普通 HTML 抓取
+- 同步模式下任务失败会尽快返回，不会一直阻塞等待
+
+### 输入
+
+最常见的输入是：
+
+- 公开专家主页 URL
+- `Web of Science` 作者页，例如 `https://www.webofscience.com/wos/author/record/917221`
+- 本地 HTML 文件路径（用于离线测试或回放）
+
+### 输出
+
+`POST /v1/agent-tasks` 返回的是平台统一任务响应，不是纯业务 JSON。
+
+对 `expert-profile` 来说，真正的专家数据位于：
+
+- `result.structured`
+- 同步模式下也会出现在 `runResult.result.structured`
+
+### 专家抽取示例
+
+```bash
+curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
+  -H 'content-type: application/json' \
+  -d '{
+    "idempotencyKey": "expert-profile-demo-1",
+    "tenantId": "digit-system",
+    "taskType": "expert.profile.extract",
+    "agentType": "expert-profile",
+    "priority": "p1",
+    "triggerType": "sync",
+    "timeoutMs": 180000,
+    "input": {
+      "prompt": "https://www.webofscience.com/wos/author/record/917221",
+      "metadata": {
+        "approvalToken": "approved-by-upstream"
+      }
+    },
+    "trace": {
+      "correlationId": "corr-expert-profile-demo-1",
+      "sourceSystem": "manual-test"
+    }
+  }'
+```
+
+示例响应中的关键字段：
+
+```json
+{
+  "taskId": "task_xxx",
+  "status": "SUCCEEDED",
+  "result": {
+    "structured": {
+      "name": "Anh Tuan Hoang",
+      "institution": "Dong Nai Technol Univ",
+      "research_areas": ["Energy & Fuels", "Engineering"],
+      "_meta": {
+        "source_url": "https://www.webofscience.com/wos/author/record/917221",
+        "extracted_at": "2026-04-14T08:00:00.000Z"
+      }
+    }
+  },
+  "runResult": {
+    "usage": {
+      "provider": "aliyun-bailian",
+      "model": "glm-5"
+    }
+  }
+}
+```
+
+### 对接注意事项
+
+- `expert-profile` 默认需要联网和 `bash` 能力，因此通常会触发审批 gating；调用方需要在 `input.metadata.approvalToken` 里传非空值。
+- 如果你只是给业务系统提供“传 URL，回专家数据”的能力，建议在平台前面再包一层业务接口，把 `result.structured` 解包后再返回给上游。
+- 当前根接口支持 `sync / async / callback` 三种模式；如果一次要批量抽取很多专家主页，建议业务侧优先考虑异步模式。
 
 ## 核心请求结构
 

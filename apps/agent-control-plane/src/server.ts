@@ -333,17 +333,23 @@ async function waitForTerminalTaskState(
   repository: JsonFileTaskRepository,
   taskId: string,
   timeoutMs: number,
-): Promise<void> {
-  const terminalStatuses = new Set(["SUCCEEDED", "PARTIAL", "FAILED", "TIMED_OUT", "CANCELLED"]);
+): Promise<TaskRecord | undefined> {
+  const terminalStatuses = new Set(["SUCCEEDED", "PARTIAL", "FAILED", "TIMED_OUT", "CANCELLED", "REJECTED"]);
   const deadline = Date.now() + timeoutMs;
+  let lastRecord: TaskRecord | undefined;
 
   while (Date.now() <= deadline) {
     const record = await repository.get(taskId);
-    if (record && terminalStatuses.has(record.status)) {
-      return;
+    if (record) {
+      lastRecord = record;
+    }
+    if (record && (terminalStatuses.has(record.status) || record.error)) {
+      return record;
     }
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
+
+  return lastRecord;
 }
 
 function validateTaskRequest(body: Partial<CreateTaskRequest>): asserts body is CreateTaskRequest {
@@ -430,6 +436,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const app = await buildControlPlaneApp();
   const port = Number(process.env.PORT ?? "3000");
   await app.listen({ port, host: "0.0.0.0" });
+  console.log(`agent-control-plane listening on http://127.0.0.1:${port}`);
 }
 
 export { CallbackDispatcher } from "./callback-dispatcher.js";

@@ -5,7 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import Ajv from "ajv";
-import { streamSimpleOpenAIResponses } from "@mariozechner/pi-ai";
+import { streamSimpleOpenAICompletions, streamSimpleOpenAIResponses } from "@mariozechner/pi-ai";
 import {
   AuthStorage,
   createAgentSession,
@@ -708,13 +708,17 @@ interface SubmitResultState {
   callCount: number;
 }
 
-function createSubmitResultTool(schema: Record<string, unknown> | undefined, state: SubmitResultState): ToolDefinition {
+function createSchemaValidator(schema: Record<string, unknown> | undefined) {
   const AjvCtor = Ajv as unknown as {
     new (options: { allErrors: boolean; strict: boolean }): {
       compile(value: Record<string, unknown>): ((value: unknown) => boolean) & { errors?: unknown };
     };
   };
-  const validator = new AjvCtor({ allErrors: true, strict: false }).compile(schema ?? { type: "object" });
+  return new AjvCtor({ allErrors: true, strict: false }).compile(schema ?? { type: "object" });
+}
+
+function createSubmitResultTool(schema: Record<string, unknown> | undefined, state: SubmitResultState): ToolDefinition {
+  const validator = createSchemaValidator(schema);
 
   return defineTool({
     name: "submit_result",
@@ -761,15 +765,120 @@ function createSubmitResultTool(schema: Record<string, unknown> | undefined, sta
   });
 }
 
+function tryRecoverStructuredResultFromAssistantText(input: {
+  finalText: string;
+  schema: Record<string, unknown> | undefined;
+  state: SubmitResultState | undefined;
+}): boolean {
+  if (!input.state || input.state.payload || !input.finalText.trim()) {
+    return false;
+  }
+
+  const validator = createSchemaValidator(input.schema);
+  const candidates = extractJsonCandidates(input.finalText);
+  for (const candidate of candidates) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+
+    const payloadCandidate = normalizeRecoveredSubmitResultPayload(parsed, validator);
+    if (!payloadCandidate) {
+      continue;
+    }
+
+    input.state.callCount += 1;
+    input.state.payload = {
+      ...payloadCandidate,
+      quality: {
+        ...(payloadCandidate.quality ?? {}),
+        notes: dedupeStrings([
+          ...((payloadCandidate.quality?.notes ?? []) as string[]),
+          "auto_recovered_from_assistant_text",
+        ]),
+      },
+    };
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeRecoveredSubmitResultPayload(
+  parsed: unknown,
+  validator: ((value: unknown) => boolean) & { errors?: unknown },
+): SubmitResultPayload | undefined {
+  if (!parsed || typeof parsed !== "object") {
+    return undefined;
+  }
+
+  const asPayload = parsed as SubmitResultPayload;
+  if (asPayload.structured !== undefined && validator(asPayload.structured)) {
+    return asPayload;
+  }
+
+  if (validator(parsed)) {
+    return { structured: parsed as Record<string, unknown> };
+  }
+
+  return undefined;
+}
+
+function extractJsonCandidates(text: string): string[] {
+  const trimmed = text.trim();
+  const candidates = new Set<string>();
+  if (trimmed) {
+    candidates.add(trimmed);
+  }
+
+  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedMatch?.[1]) {
+    candidates.add(fencedMatch[1].trim());
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.add(trimmed.slice(firstBrace, lastBrace + 1).trim());
+  }
+
+  return [...candidates].filter((candidate) => candidate.length > 0);
+}
+
 function envKeyForProvider(provider: string): string | undefined {
   const mapping: Record<string, string> = {
+    "aliyun-bailian": "ALIYUN_BAILIAN_API_KEY",
     anthropic: "ANTHROPIC_API_KEY",
+    dashscope: "DASHSCOPE_API_KEY",
     openai: "OPENAI_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
     google: "GOOGLE_API_KEY",
     gemini: "GOOGLE_API_KEY",
   };
   return mapping[provider];
+}
+
+export function resolveOpenAICompatibleCompat(providerName: string):
+  | {
+      supportsDeveloperRole?: boolean;
+      supportsReasoningEffort?: boolean;
+      maxTokensField?: "max_completion_tokens" | "max_tokens";
+      thinkingFormat?: "openai" | "zai" | "qwen" | "qwen-chat-template";
+    }
+  | undefined {
+  if (providerName === "aliyun-bailian") {
+    return {
+      // DashScope-compatible glm-5 rejects the non-standard `developer` role.
+      supportsDeveloperRole: false,
+      supportsReasoningEffort: true,
+      maxTokensField: "max_completion_tokens",
+      thinkingFormat: "openai",
+    };
+  }
+
+  return undefined;
 }
 
 type InlineExtensionApi = {
@@ -1569,7 +1678,14 @@ export class DefaultPiExecutor {
         if (!input.ctx.spec.outputContract.requireSubmitResultTool) {
           return true;
         }
-        return Boolean(runtime?.submitResultState.payload);
+        return Boolean(
+          runtime?.submitResultState.payload ||
+            tryRecoverStructuredResultFromAssistantText({
+              finalText,
+              schema: input.ctx.spec.outputContract.schema,
+              state: runtime?.submitResultState,
+            }),
+        );
       });
 
       session = await this.sessionFactory({
@@ -2841,27 +2957,44 @@ function registerRuntimeProviders(
   authStorage: AuthStorage,
   runtimeConfig: ReturnType<typeof loadPlatformRuntimeConfig>,
 ): void {
-  const rightCodes = runtimeConfig.providers.rightCodes;
-  if (!rightCodes.enabled) {
+  registerOpenAICompatibleProvider(modelRegistry, authStorage, runtimeConfig.providers.rightCodes, "Right Codes Codex");
+  registerOpenAICompatibleProvider(
+    modelRegistry,
+    authStorage,
+    runtimeConfig.providers.aliyunBailian,
+    "Aliyun Bailian",
+  );
+}
+
+function registerOpenAICompatibleProvider(
+  modelRegistry: ModelRegistry,
+  authStorage: AuthStorage,
+  provider: ReturnType<typeof loadPlatformRuntimeConfig>["providers"]["rightCodes"],
+  displayName: string,
+): void {
+  if (!provider.enabled) {
     return;
   }
 
-  const runtimeKey = process.env[rightCodes.apiKeyEnvVar];
+  const runtimeKey = process.env[provider.apiKeyEnvVar];
   if (runtimeKey) {
-    authStorage.setRuntimeApiKey(rightCodes.providerName, runtimeKey);
+    authStorage.setRuntimeApiKey(provider.providerName, runtimeKey);
   }
 
-  modelRegistry.registerProvider(rightCodes.providerName, {
-    baseUrl: rightCodes.baseUrl,
-    apiKey: rightCodes.apiKeyEnvVar,
-    api: rightCodes.api,
+  modelRegistry.registerProvider(provider.providerName, {
+    baseUrl: provider.baseUrl,
+    apiKey: provider.apiKeyEnvVar,
+    api: provider.api,
     authHeader: true,
-    streamSimple: streamSimpleOpenAIResponses as never,
+    streamSimple:
+      (provider.api === "openai-completions"
+        ? streamSimpleOpenAICompletions
+        : streamSimpleOpenAIResponses) as never,
     models: [
       {
-        id: rightCodes.modelId,
-        name: "Right Codes Codex",
-        api: rightCodes.api,
+        id: provider.modelId,
+        name: displayName,
+        api: provider.api,
         reasoning: true,
         input: ["text", "image"],
         cost: {
@@ -2872,6 +3005,7 @@ function registerRuntimeProviders(
         },
         contextWindow: 128000,
         maxTokens: 16384,
+        compat: resolveOpenAICompatibleCompat(provider.providerName),
       },
     ],
   });

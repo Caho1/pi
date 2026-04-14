@@ -11,6 +11,7 @@ describe("control plane API", () => {
       fs.rm("runtime/test-control-plane", { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
       fs.rm("runtime/test-control-plane-approval", { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
       fs.rm("runtime/test-control-plane-approved", { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
+      fs.rm("runtime/test-control-plane-failed", { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
     ]);
   });
 
@@ -211,6 +212,48 @@ describe("control plane API", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().status).toBe("SUCCEEDED");
     expect(processCalls).toBe(1);
+
+    await app.close();
+  });
+
+  test("sync request exits early when task fails instead of waiting for full timeout", async () => {
+    const app = await buildControlPlaneApp({
+      runtimeRoot: "runtime/test-control-plane-failed",
+      processor: {
+        async process() {
+          throw new Error("boom");
+        },
+        async cancel() {
+          return false;
+        },
+      },
+    });
+
+    const startedAt = Date.now();
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/agent-tasks",
+      payload: {
+        idempotencyKey: "failed-1",
+        tenantId: "acme",
+        taskType: "code.review",
+        priority: "p1",
+        triggerType: "sync",
+        timeoutMs: 5_000,
+        input: {
+          prompt: "fail fast",
+        },
+        trace: {
+          correlationId: "corr-failed-1",
+        },
+      },
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(elapsedMs).toBeLessThan(1_000);
+    expect(response.statusCode).toBe(202);
+    expect(response.json().status).toBe("FAILED");
+    expect(response.json().error.code).toBe("task.processing_failed");
 
     await app.close();
   });

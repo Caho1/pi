@@ -1,0 +1,119 @@
+{
+  "agentType": "expert-profile",
+  "version": "1.0.0",
+  "displayName": "Expert Profile Extractor",
+  "description": "Extracts structured 15-field profiles from expert/faculty/researcher homepages using a rule-layer + LLM pipeline.",
+  "skillRefs": [
+    "/Users/jiahao/Desktop/PythonProject/pi/packages/agent-specs/skills/expert-profile-extractor/SKILL.md"
+  ],
+  "extensionRefs": [],
+  "promptTemplates": [],
+  "defaultModelPolicy": {
+    "preferredRole": "default",
+    "providerAllowlist": ["aliyun-bailian"],
+    "modelAllowlist": ["glm-5"],
+    "failoverOrder": [
+      { "provider": "aliyun-bailian", "model": "glm-5" }
+    ],
+    "maxAttemptsPerProvider": 1,
+    "thinkingLevel": "medium",
+    "maxTokens": 8000
+  },
+  "defaultToolPolicy": {
+    "mode": "allowlist",
+    "tools": ["read", "bash", "ls"]
+  },
+  "defaultWorkspacePolicy": {
+    "mode": "ephemeral",
+    "retainOnFailure": true,
+    "network": "enabled",
+    "maxDiskMb": 512,
+    "ttlMinutes": 15
+  },
+  "defaultCompactionPolicy": {
+    "mode": "default",
+    "preserveToolOutputs": true,
+    "preserveRecentTurns": 4,
+    "summarizeOlderThanTurns": 10,
+    "emitCompactionDiagnostics": false
+  },
+  "outputContract": {
+    "mode": "tool-submission",
+    "requireSubmitResultTool": true,
+    "textFallbackAllowed": false,
+    "schema": {
+      "type": "object",
+      "required": [
+        "name", "gender", "birth_date", "country_region", "institution",
+        "college_department", "research_areas", "research_directions",
+        "academic_title", "admin_title", "phone", "email",
+        "contact_preferred", "bio", "avatar_url", "_meta"
+      ],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "gender": { "type": ["string", "null"], "enum": ["male", "female", null] },
+        "birth_date": { "type": ["string", "null"] },
+        "country_region": { "type": ["string", "null"] },
+        "institution": { "type": ["string", "null"] },
+        "college_department": { "type": ["string", "null"] },
+        "research_areas": { "type": "array", "items": { "type": "string" } },
+        "research_directions": { "type": "array", "items": { "type": "string" } },
+        "academic_title": { "type": ["string", "null"] },
+        "admin_title": { "type": ["string", "null"] },
+        "phone": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"] },
+        "contact_preferred": { "type": ["string", "null"], "enum": ["email", "phone", "other", null] },
+        "bio": { "type": ["string", "null"] },
+        "avatar_url": { "type": ["string", "null"] },
+        "_meta": {
+          "type": "object",
+          "required": ["source_url", "extracted_at"],
+          "properties": {
+            "source_url": { "type": "string" },
+            "extracted_at": { "type": "string" },
+            "fields_from_rule": { "type": "array", "items": { "type": "string" } },
+            "fields_from_llm": { "type": "array", "items": { "type": "string" } },
+            "fields_missing": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  },
+  "sessionReusePolicy": {
+    "mode": "none",
+    "persistent": false
+  },
+  "subagentPolicy": {
+    "enabled": false,
+    "maxDepth": 1,
+    "maxBreadth": 1,
+    "maxParallel": 1,
+    "inheritWorkspace": true,
+    "inheritToolPolicy": true,
+    "inheritModelPolicy": true
+  },
+  "completionPolicy": {
+    "requirePromptResolved": true,
+    "requireTerminalEvent": true,
+    "requireNoPendingWork": true,
+    "requireSubmitResult": true,
+    "settledTimeoutMs": 3000
+  },
+  "extensionGovernance": {
+    "allowedExtensionRefs": [],
+    "allowRuntimeInstall": false,
+    "allowWorkspaceDiscovery": false,
+    "hashPinned": true
+  },
+  "costPolicy": {
+    "maxCostUsd": 1,
+    "maxTokens": 8000,
+    "warnAtPercent": 80
+  },
+  "retryPolicy": {
+    "maxRetries": 1,
+    "retryableErrors": ["model.rate_limit", "model.overloaded", "network.timeout"],
+    "backoffBaseMs": 200,
+    "backoffMaxMs": 1000
+  }
+}

@@ -399,6 +399,7 @@ export class TaskRouter {
     private readonly routes: Record<string, string> = {
       "code.review": "reviewer",
       "requirement.analysis": "requirement-analyst",
+      "expert.profile.extract": "expert-profile",
     },
   ) {}
 
