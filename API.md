@@ -290,7 +290,10 @@ Authorization: Bearer <token>
   "data": {
     "name": "Anh Tuan Hoang",
     "institution": "Dong Nai Technol Univ",
-    "research_areas": ["Energy & Fuels", "Engineering"],
+    "research_areas": [
+      { "key": null, "value": "Energy & Fuels" },
+      { "key": null, "value": "Engineering" }
+    ],
     "social_positions": [],
     "journal_resources": [],
     "tags": {
@@ -313,7 +316,7 @@ Authorization: Bearer <token>
 - `promptTokens` / `completionTokens` / `totalTokens`
   从模型执行结果里映射出的输入、输出和总 token 数
 - `data`
-  业务层结构化专家数据，本质上等于通用任务响应里的 `result.structured`。包含 18 个字段：15 个基础字段 + `social_positions`（社会兼职，字符串数组）+ `journal_resources`（期刊资源，字符串数组）+ `tags`（四分类枚举对象）。如果底层结果里出现 `professional` / `domain` / `title` / `country` 或对应业务字段的枚举编码值，业务接口会在返回前自动转成可直接展示的中文标签
+  业务层结构化专家数据，本质上等于通用任务响应里的 `result.structured`。包含 18 个字段：15 个基础字段 + `social_positions`（社会兼职，字符串数组）+ `journal_resources`（期刊资源，字符串数组）+ `tags`（四分类枚举对象）。如果底层结果里出现 `professional` / `domain` / `title` / `country` 或对应业务字段的枚举编码值，业务接口会在返回前自动转成 `{ key, value }` 标签对象；字典外的值会返回 `{ key: null, value: 原始值 }`
 - `tags`
   固定四键对象：`academic_honors` / `institution_tier` / `experiences` / `others`，每个子字段是一个字符串数组，值只会来自业务方预定义的枚举白名单，非法值会被后处理静默丢弃
 - `error`

@@ -448,10 +448,28 @@ describe("control plane API", () => {
       status: "SUCCEEDED",
       requestId: "expert-biz-dicts-1",
       data: {
-        professional: "副教授",
-        domain: "人工智能",
-        title: ["院士", "IEEE Fellow"],
-        country: "美国",
+        professional: {
+          key: 2,
+          value: "副教授",
+        },
+        domain: {
+          key: 8,
+          value: "人工智能",
+        },
+        title: [
+          {
+            key: 1,
+            value: "院士",
+          },
+          {
+            key: 8,
+            value: "IEEE Fellow",
+          },
+        ],
+        country: {
+          key: 9,
+          value: "美国",
+        },
       },
       error: null,
     });
@@ -516,9 +534,106 @@ describe("control plane API", () => {
       status: "SUCCEEDED",
       requestId: "expert-biz-dicts-2",
       data: {
-        academic_title: "副教授",
-        research_areas: ["计算机科学与技术", "人工智能"],
-        country_region: "美国",
+        academic_title: {
+          key: 2,
+          value: "副教授",
+        },
+        research_areas: [
+          {
+            key: 7,
+            value: "计算机科学与技术",
+          },
+          {
+            key: 8,
+            value: "人工智能",
+          },
+        ],
+        country_region: {
+          key: 9,
+          value: "美国",
+        },
+      },
+      error: null,
+    });
+
+    await app.close();
+  });
+
+  test("expert profile business route keeps unmapped dictionary values with null keys", async () => {
+    const app = await buildControlPlaneApp({
+      runtimeRoot: "runtime/test-control-plane-expert-profile",
+      processor: {
+        async process(task) {
+          return {
+            taskId: task.taskId,
+            runId: "run-expert-profile-dicts-fallback",
+            specId: task.compiledSpec.specId,
+            status: "succeeded",
+            completion: {
+              barrier: "settled-barrier",
+              promptResolved: true,
+              terminalEventSeen: true,
+              noPendingBackgroundWork: true,
+              finalizerPassed: true,
+            },
+            result: {
+              submissionMode: "submit_result",
+              structured: {
+                academic_title: "首席科学家",
+                research_areas: ["人工智能", "具身智能"],
+                country_region: "火星",
+              },
+            },
+            artifacts: [],
+            usage: {
+              inputTokens: 20,
+              outputTokens: 10,
+            },
+            timestamps: {
+              startedAt: new Date().toISOString(),
+              finishedAt: new Date().toISOString(),
+            },
+          };
+        },
+        async cancel() {
+          return false;
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/expert-profiles/extract",
+      payload: {
+        url: "https://example.edu/faculty/qianqi",
+        requestId: "expert-biz-dicts-3",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      status: "SUCCEEDED",
+      requestId: "expert-biz-dicts-3",
+      data: {
+        academic_title: {
+          key: null,
+          value: "首席科学家",
+        },
+        research_areas: [
+          {
+            key: 8,
+            value: "人工智能",
+          },
+          {
+            key: null,
+            value: "具身智能",
+          },
+        ],
+        country_region: {
+          key: null,
+          value: "火星",
+        },
       },
       error: null,
     });

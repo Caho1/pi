@@ -67,15 +67,13 @@ The four `tags` categories are **enum-constrained** — any value the LLM return
 The skill bundles a Python pipeline. Call it directly — do not re-implement the extraction inline.
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" <URL_OR_HTML_PATH> [--out <output.json>]
+.venv/bin/python scripts/extract.py <URL_OR_HTML_PATH> [--out <output.json>]
 ```
 
 Interpreter / timeout guidance:
 
-- Prefer `scripts/run_extract_with_uv.sh`. It will run `uv venv .venv` when needed and then `uv pip install --python .venv/bin/python -r scripts/requirements.txt` before invoking the extractor.
-- If you are not already sitting in the repo root, resolve the script from `git rev-parse --show-toplevel` so you call it by absolute path instead of a fragile repo-relative path.
-- If you need to bootstrap manually, run `uv venv .venv` first, then `uv pip install --python .venv/bin/python -r scripts/requirements.txt`.
-- After bootstrap, use `.venv/bin/python`. Avoid bare `python` because it is not guaranteed to exist in agent sandboxes.
+- Prefer `.venv/bin/python` when the skill directory already contains a virtualenv.
+- If `.venv/bin/python` is unavailable, use `python3`. Avoid bare `python` because it is not guaranteed to exist in agent sandboxes.
 - If you are running the command through an agent `bash` tool, set the tool timeout to at least `120` seconds for a single real URL. The extractor's own LLM step can exceed 60 seconds on real faculty pages.
 
 For Web of Science author record pages, there is also a dedicated API-backed script:
@@ -96,24 +94,23 @@ Examples:
 
 ```bash
 # From URL
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
+.venv/bin/python scripts/extract.py https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
 
 # From local HTML (for offline/test use)
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" tests/fixtures/usst_yangjiantao.html --source-url https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
+.venv/bin/python scripts/extract.py tests/fixtures/usst_yangjiantao.html --source-url https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
 
 # Batch
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" urls.txt --batch --out results.jsonl
+.venv/bin/python scripts/extract.py urls.txt --batch --out results.jsonl
 ```
 
 The script prints the JSON to stdout and (if `--out` given) writes to file.
 
 ### Dependencies
 
-Bootstrap once:
+Install once:
 
 ```bash
-uv venv .venv
-uv pip install --python .venv/bin/python -r scripts/requirements.txt
+pip install -r scripts/requirements.txt
 ```
 
 ### Environment variables
@@ -189,7 +186,7 @@ This is **intentional**, not arbitrary — review before changing:
 Offline fixtures live in `tests/fixtures/`. Run without calling the LLM (rule-only mode, for quick sanity):
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" tests/fixtures/usst_yangjiantao.html --rules-only
+.venv/bin/python scripts/extract.py tests/fixtures/usst_yangjiantao.html --rules-only
 ```
 
 This should populate at minimum `email`, `phone`, `avatar_url`, `name`, `country_region`. If any of those are null on the fixtures, the rule layer has regressed.
@@ -197,7 +194,7 @@ This should populate at minimum `email`, `phone`, `avatar_url`, `name`, `country
 Full end-to-end run (uses LLM):
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" tests/fixtures/usst_yangjiantao.html \
+.venv/bin/python scripts/extract.py tests/fixtures/usst_yangjiantao.html \
   --source-url https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
 ```
 
@@ -206,7 +203,7 @@ bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profil
 Input file with one URL per line; output NDJSON (one JSON per line). Use this when the user asks for "extract these 50 profiles":
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/packages/agent-specs/skills/expert-profile-extractor/scripts/run_extract_with_uv.sh" urls.txt --batch --out results.jsonl --concurrency 4
+.venv/bin/python scripts/extract.py urls.txt --batch --out results.jsonl --concurrency 4
 ```
 
 Errors on individual URLs are captured as `{"_error": "...", "_meta": {"source_url": "..."}}` lines, never crash the whole batch.

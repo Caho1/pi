@@ -24,21 +24,4 @@ describe("DefaultSpecCompiler", () => {
     expect(compiledA.outputContract.requireSubmitResultTool).toBe(true);
     expect(compiledA.resources.skillRefs).toEqual([]);
   });
-
-  test("expert-profile prompt includes uv bootstrap guidance", async () => {
-    const specsRoot = path.resolve("packages/agent-specs/agents");
-    const registry = new FileSystemAgentRegistry(specsRoot);
-    const compiler = new DefaultSpecCompiler({
-      adapterVersion: "1.0.0",
-      exactSdkVersion: "0.66.1",
-    });
-
-    const source = await registry.getSourceSpec("expert-profile");
-    const compiled = await compiler.compile(source);
-    const joinedPrompts = compiled.prompts.appendSystemPrompts.join("\n");
-
-    expect(joinedPrompts).toContain("uv venv");
-    expect(joinedPrompts).toContain("uv pip install");
-    expect(joinedPrompts).toContain("git rev-parse --show-toplevel");
-  });
 });

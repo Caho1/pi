@@ -62,10 +62,7 @@ def _llm_timeout_seconds() -> float:
 
 def _client() -> "OpenAI":
     if OpenAI is None:
-        raise RuntimeError(
-            "openai package not installed; bootstrap the extractor env with "
-            "'uv venv .venv && uv pip install --python .venv/bin/python -r scripts/requirements.txt'"
-        )
+        raise RuntimeError("openai package not installed; run pip install -r scripts/requirements.txt")
     base_url = _env(
         "EXPERT_EXTRACTOR_BASE_URL",
         "ALIYUN_BAILIAN_BASE_URL",

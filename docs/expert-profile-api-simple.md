@@ -97,12 +97,21 @@ token 错误时返回 `401`，`error.code = "unauthorized"`。
     "name": "杨建涛",
     "gender": null,
     "birth_date": null,
-    "country_region": "中国",
+    "country_region": {
+      "key": 1,
+      "value": "中国"
+    },
     "institution": "上海理工大学",
     "college_department": "健康科学与工程学院",
-    "research_areas": ["生物力学", "康复机器人"],
+    "research_areas": [
+      { "key": null, "value": "生物力学" },
+      { "key": null, "value": "康复机器人" }
+    ],
     "research_directions": ["康复机器人", "可穿戴监测设备"],
-    "academic_title": "副教授",
+    "academic_title": {
+      "key": 2,
+      "value": "副教授"
+    },
     "admin_title": "硕士研究生指导教师",
     "phone": null,
     "email": "yang@example.edu.cn",
@@ -143,8 +152,9 @@ token 错误时返回 `401`，`error.code = "unauthorized"`。
 
 兼容性说明：
 
-- 如果底层抽取结果里这几类字段返回的是业务字典编码值，而不是最终展示文案，业务接口会在返回 `data` 前自动转成标签
+- 如果底层抽取结果里这几类字段返回的是业务字典编码值，或者已经返回了可识别的中文标签，业务接口会在返回 `data` 前统一转成 `{ key, value }` 标签对象
 - 当前已覆盖的字典字段包括：职称（`professional` / `academic_title`）、研究领域（`domain` / `research_areas`）、头衔（`title`）、国家地区（`country` / `country_region`）
+- 字典外的值不会丢失：会按 `{ "key": null, "value": 原始值 }` 返回，便于前端照常展示
 
 ---
 
@@ -158,12 +168,12 @@ token 错误时返回 `401`，`error.code = "unauthorized"`。
 | 2 | 姓名 | `name` | string \| null | 优先中文名 |
 | 3 | 性别 | `gender` | `"male"` \| `"female"` \| null | 无明确线索返回 null，业务侧不要猜 |
 | 4 | 出生年月 | `birth_date` | string \| null | `YYYY` 或 `YYYY-MM` |
-| 5 | 国家地区 | `country_region` | string \| null | 中文国名，如「中国」 |
+| 5 | 国家地区 | `country_region` | `{ key: number \| null, value: unknown } \| null` | 命中字典时返回国家编码 + 标签；未命中字典时 `key = null` |
 | 6 | 单位 | `institution` | string \| null | 机构全称 |
 | 7 | 学院/部门 | `college_department` | string \| null | 可能是「学院 / 系」拼接 |
-| 8 | 研究领域 | `research_areas` | string[] | **数组**，业务侧拼接为逗号分隔展示 |
+| 8 | 研究领域 | `research_areas` | `{ key: number \| null, value: unknown }[]` | **数组**，每项都是标签对象；业务侧展示时取 `value` |
 | 9 | 研究方向 | `research_directions` | string[] | **数组**，同上 |
-| 10 | 职称 | `academic_title` | string \| null | 教授/副教授 等 |
+| 10 | 职称 | `academic_title` | `{ key: number \| null, value: unknown } \| null` | 命中字典时返回职称编码 + 标签；未命中字典时 `key = null` |
 | 11 | 职务 | `admin_title` | string \| null | 多个用「; 」拼接 |
 | 12 | 联系电话 | `phone` | string \| null | 主页能抓到才有 |
 | 13 | 电子邮箱 | `email` | string \| null | 主页能抓到才有 |
@@ -194,6 +204,7 @@ token 错误时返回 `401`，`error.code = "unauthorized"`。
 
 - 字段为 `null` 或 `[]` → 右栏显示为空 → 自动变成「不可勾选」状态（等同左栏规则）
 - 字段有值 → 右栏显示值 + 可勾选的「采纳该字段」checkbox
+- 对于字典字段，前端展示时读取 `value` 即可；`key` 用于回填业务字典编码或做精确比对
 - 「一键全选」应只选中「有值且与左栏不一致」的字段
 
 ### 6.2 `_meta`

@@ -1,4 +1,8 @@
 type EnumDictionary = Record<number, string>;
+type DictionaryItem = {
+  key: number | null;
+  value: unknown;
+};
 
 const PROFESSIONAL_LABELS: EnumDictionary = {
   1: "教授",
@@ -290,6 +294,8 @@ const TITLE_FLAGS = [
   { flag: 256, label: "ACM 会员" },
 ] as const;
 
+const TITLE_LABELS: EnumDictionary = Object.fromEntries(TITLE_FLAGS.map(({ flag, label }) => [flag, label]));
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -306,53 +312,116 @@ function parseNumericValue(value: unknown): number | undefined {
   return undefined;
 }
 
-function translateScalarEnum(value: unknown, dictionary: EnumDictionary): unknown {
-  const numericValue = parseNumericValue(value);
-  if (numericValue === undefined) {
+function findEnumKeyByLabel(value: string, dictionary: EnumDictionary): number | undefined {
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  for (const [rawKey, label] of Object.entries(dictionary)) {
+    if (label === normalized) {
+      return Number(rawKey);
+    }
+  }
+
+  return undefined;
+}
+
+function toScalarDictionaryItem(value: unknown, dictionary: EnumDictionary): DictionaryItem | unknown {
+  if (value === null || value === undefined || value === "") {
     return value;
   }
 
-  return dictionary[numericValue] ?? value;
-}
-
-function translateEnumList(value: unknown, dictionary: EnumDictionary): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => translateScalarEnum(item, dictionary));
+  const numericValue = parseNumericValue(value);
+  if (numericValue !== undefined) {
+    return {
+      key: dictionary[numericValue] ? numericValue : numericValue,
+      value: dictionary[numericValue] ?? value,
+    };
   }
 
-  const translated = translateScalarEnum(value, dictionary);
+  if (typeof value === "string") {
+    const matchedKey = findEnumKeyByLabel(value, dictionary);
+    if (matchedKey !== undefined) {
+      return {
+        key: matchedKey,
+        value: dictionary[matchedKey],
+      };
+    }
+  }
+
+  return {
+    key: null,
+    value,
+  };
+}
+
+function toDictionaryItemList(value: unknown, dictionary: EnumDictionary): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => toScalarDictionaryItem(item, dictionary));
+  }
+
+  const translated = toScalarDictionaryItem(value, dictionary);
   return translated === value ? value : [translated];
 }
 
 function translateBitmask(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => toScalarDictionaryItem(item, TITLE_LABELS));
+  }
+
   const numericValue = parseNumericValue(value);
-  if (numericValue === undefined) {
-    return value;
+  if (numericValue !== undefined) {
+    const translated = TITLE_FLAGS.filter(({ flag }) => (numericValue & flag) === flag).map(({ flag, label }) => ({
+      key: flag,
+      value: label,
+    }));
+
+    if (translated.length > 0 || numericValue === 0) {
+      return translated;
+    }
+
+    return [
+      {
+        key: numericValue,
+        value,
+      },
+    ];
   }
 
-  const translated = TITLE_FLAGS.filter(({ flag }) => (numericValue & flag) === flag).map(
-    ({ label }) => label,
-  );
-  if (translated.length > 0 || numericValue === 0) {
-    return translated;
+  if (typeof value === "string") {
+    const matchedKey = findEnumKeyByLabel(value, TITLE_LABELS);
+    if (matchedKey !== undefined) {
+      return [
+        {
+          key: matchedKey,
+          value: TITLE_LABELS[matchedKey],
+        },
+      ];
+    }
   }
 
-  return value;
+  return [
+    {
+      key: null,
+      value,
+    },
+  ];
 }
 
 const FIELD_TRANSLATORS: Record<string, (value: unknown) => unknown> = {
-  professional: (value) => translateScalarEnum(value, PROFESSIONAL_LABELS),
-  academic_title: (value) => translateScalarEnum(value, PROFESSIONAL_LABELS),
-  "职称": (value) => translateScalarEnum(value, PROFESSIONAL_LABELS),
-  domain: (value) => translateScalarEnum(value, DOMAIN_LABELS),
-  research_areas: (value) => translateEnumList(value, DOMAIN_LABELS),
-  "研究领域": (value) => translateEnumList(value, DOMAIN_LABELS),
+  professional: (value) => toScalarDictionaryItem(value, PROFESSIONAL_LABELS),
+  academic_title: (value) => toScalarDictionaryItem(value, PROFESSIONAL_LABELS),
+  "职称": (value) => toScalarDictionaryItem(value, PROFESSIONAL_LABELS),
+  domain: (value) => toScalarDictionaryItem(value, DOMAIN_LABELS),
+  research_areas: (value) => toDictionaryItemList(value, DOMAIN_LABELS),
+  "研究领域": (value) => toDictionaryItemList(value, DOMAIN_LABELS),
   title: translateBitmask,
   "头衔": translateBitmask,
-  country: (value) => translateScalarEnum(value, COUNTRY_LABELS),
-  country_region: (value) => translateScalarEnum(value, COUNTRY_LABELS),
-  "国家": (value) => translateScalarEnum(value, COUNTRY_LABELS),
-  "国家地区": (value) => translateScalarEnum(value, COUNTRY_LABELS),
+  country: (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
+  country_region: (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
+  "国家": (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
+  "国家地区": (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
 };
 
 export function translateExpertProfileBusinessStructured(structured: unknown): unknown {
