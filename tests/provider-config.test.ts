@@ -27,7 +27,7 @@ describe("platform runtime config", () => {
 
   test("loads aliyun bailian provider configuration from environment", () => {
     process.env.ALIYUN_BAILIAN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    process.env.ALIYUN_BAILIAN_MODEL_ID = "glm-5";
+    process.env.ALIYUN_BAILIAN_MODEL_ID = "glm-5.1";
     process.env.ALIYUN_BAILIAN_API_KEY = "secret-bailian";
     process.env.EXPERT_PROFILE_API_TOKEN = "expert-secret";
 
@@ -35,7 +35,7 @@ describe("platform runtime config", () => {
 
     expect(config.providers.aliyunBailian.enabled).toBe(true);
     expect(config.providers.aliyunBailian.baseUrl).toBe("https://dashscope.aliyuncs.com/compatible-mode/v1");
-    expect(config.providers.aliyunBailian.modelId).toBe("glm-5");
+    expect(config.providers.aliyunBailian.modelId).toBe("glm-5.1");
     expect(config.providers.aliyunBailian.api).toBe("openai-completions");
     expect(config.providers.aliyunBailian.apiKeyEnvVar).toBe("ALIYUN_BAILIAN_API_KEY");
     expect(config.businessApi.expertProfileToken).toBe("expert-secret");
@@ -51,7 +51,7 @@ describe("platform runtime config", () => {
         [
           "ALIYUN_BAILIAN_API_KEY=secret-bailian-dotenv",
           "ALIYUN_BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1",
-          "ALIYUN_BAILIAN_MODEL_ID=glm-5",
+          "ALIYUN_BAILIAN_MODEL_ID=glm-5.1",
           "EXPERT_PROFILE_API_TOKEN=expert-secret-dotenv",
           "RIGHT_CODES_API_KEY=secret-from-dotenv",
           "RIGHT_CODES_BASE_URL=https://right.codes/codex/v1",
@@ -74,7 +74,7 @@ describe("platform runtime config", () => {
 
       expect(process.env.ALIYUN_BAILIAN_API_KEY).toBe("secret-bailian-dotenv");
       expect(config.providers.aliyunBailian.enabled).toBe(true);
-      expect(config.providers.aliyunBailian.modelId).toBe("glm-5");
+      expect(config.providers.aliyunBailian.modelId).toBe("glm-5.1");
       expect(config.providers.aliyunBailian.api).toBe("openai-completions");
       expect(config.businessApi.expertProfileToken).toBe("expert-secret-dotenv");
       expect(process.env.RIGHT_CODES_API_KEY).toBe("secret-from-dotenv");

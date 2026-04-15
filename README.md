@@ -113,12 +113,12 @@ pnpm install
 
 最少需要提供模型提供方配置。
 
-当前默认模型配置统一为阿里云百炼 `glm-5`：
+当前默认调度模型配置为阿里云百炼 `glm-5.1`：
 
 ```bash
 export ALIYUN_BAILIAN_API_KEY='你的密钥'
 export ALIYUN_BAILIAN_BASE_URL='https://dashscope.aliyuncs.com/compatible-mode/v1'
-export ALIYUN_BAILIAN_MODEL_ID='glm-5'
+export ALIYUN_BAILIAN_MODEL_ID='glm-5.1'
 export PORT=3000
 ```
 
@@ -139,7 +139,7 @@ pnpm dev
 
 默认监听：
 
-- `http://127.0.0.1:3000`
+- `http://192.168.135.172:3000`
 
 ### 4. 生产构建启动
 
@@ -174,7 +174,7 @@ pnpm worker:rpc
 先发一个低风险同步任务：
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
+curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   -H 'content-type: application/json' \
   -d '{
     "idempotencyKey": "demo-1",
@@ -208,8 +208,8 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 
 当前实现状态：
 
-- 外层调度模型使用阿里云百炼 `glm-5`
-- 内层专家抽取脚本也使用阿里云百炼 `glm-5`
+- 外层调度模型使用阿里云百炼 `glm-5.1`，并关闭思考模式
+- 内层专家抽取脚本使用阿里云百炼 `glm-5`，启用 `json_object` 且关闭思考模式
 - `Web of Science` 作者页支持专用脚本路径，不走普通 HTML 抓取
 - 同步模式下任务失败会尽快返回，不会一直阻塞等待
 - 输出包含 15 个基础字段 + `social_positions`（社会兼职）/ `journal_resources`（期刊资源）/ `tags`（四分类枚举标签）
@@ -238,7 +238,7 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 ### 推荐业务接口
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/expert-profiles/extract \
+curl -X POST http://192.168.135.172:3000/v1/expert-profiles/extract \
   -H 'Authorization: Bearer your-token' \
   -H 'content-type: application/json' \
   -d '{
@@ -287,7 +287,7 @@ Authorization: Bearer <token>
 ### 专家抽取示例
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
+curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   -H 'content-type: application/json' \
   -d '{
     "idempotencyKey": "expert-profile-demo-1",

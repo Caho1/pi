@@ -1,0 +1,13 @@
+id,canonical,aliases
+1,教授,Professor|Prof|Full Professor|正教授|首席教授|特聘教授|讲座教授|二级教授|三级教授
+2,副教授,Associate Professor|Assoc Professor|Assoc Prof|准教授
+3,助理教授,Assistant Professor|Asst Professor|Asst Prof|助理教员|助理研究教授
+4,研究员,Research Fellow|Research Professor|Senior Research Fellow|正研究员|首席研究员
+5,副研究员,Associate Researcher|Associate Research Fellow|Assoc Researcher
+6,助理研究员,Assistant Researcher|Assistant Research Fellow|Asst Researcher|初级研究员
+7,正高级工程师,Principal Engineer|Chief Engineer|教授级高工|教授级高级工程师|正高级工|正高工
+8,高级工程师,Senior Engineer|高工
+9,讲师,Lecturer|Instructor|专任教师|教员
+10,学生,Student|PhD Student|PhD Candidate|Doctoral Candidate|Graduate Student|Undergraduate|博士生|博士研究生|硕士生|硕士研究生|研究生|本科生
+11,其他正高级职称,其他正高|正高|正高级
+12,其他高级职称,其他高级|高级职称

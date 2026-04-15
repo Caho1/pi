@@ -1,0 +1,213 @@
+id,canonical,aliases
+1,中国,China|PRC|CN|CHN|中华人民共和国|People's Republic of China|Mainland China|大陆|内地|中国大陆
+2,中国台湾,Taiwan|Chinese Taipei|TW|TWN|台湾|台湾省
+3,中国香港,Hong Kong|HK|HKG|香港|香港特别行政区|Hong Kong SAR
+4,中国澳门,Macao|Macau|MO|MAC|澳门|澳门特别行政区|Macao SAR
+5,马来西亚,Malaysia|MY|MYS
+6,新加坡,Singapore|SG|SGP
+7,日本,Japan|JP|JPN
+8,韩国,South Korea|Korea|Republic of Korea|KR|KOR|大韩民国
+9,美国,USA|US|U.S.|U.S.A.|United States|United States of America|America|USA|美利坚|美利坚合众国
+10,加拿大,Canada|CA|CAN
+11,澳大利亚,Australia|AU|AUS|澳洲
+12,新西兰,New Zealand|NZ|NZL
+13,阿尔巴尼亚,Albania|AL|ALB
+14,阿尔及利亚,Algeria|DZ|DZA
+15,阿富汗,Afghanistan|AF|AFG
+16,阿根廷,Argentina|AR|ARG
+17,阿拉伯联合酋长国,United Arab Emirates|UAE|AE|ARE|阿联酋
+18,阿鲁巴,Aruba|AW|ABW
+19,阿曼,Oman|OM|OMN
+20,阿塞拜疆,Azerbaijan|AZ|AZE
+21,埃及,Egypt|EG|EGY
+22,埃塞俄比亚,Ethiopia|ET|ETH
+23,爱尔兰,Ireland|IE|IRL
+24,爱沙尼亚,Estonia|EE|EST
+25,安道尔,Andorra|AD|AND
+26,安哥拉,Angola|AO|AGO
+27,安圭拉,Anguilla|AI|AIA
+28,安提瓜和巴布达,Antigua and Barbuda|AG|ATG
+29,奥地利,Austria|AT|AUT
+30,巴巴多斯,Barbados|BB|BRB
+31,巴布亚新几内亚,Papua New Guinea|PG|PNG
+32,巴哈马,Bahamas|BS|BHS
+33,巴基斯坦,Pakistan|PK|PAK
+34,巴拉圭,Paraguay|PY|PRY
+35,巴勒斯坦,Palestine|PS|PSE
+36,巴林,Bahrain|BH|BHR
+37,巴拿马,Panama|PA|PAN
+38,巴西,Brazil|BR|BRA
+39,白俄罗斯,Belarus|BY|BLR
+40,百慕大,Bermuda|BM|BMU
+41,保加利亚,Bulgaria|BG|BGR
+42,贝宁,Benin|BJ|BEN
+43,比利时,Belgium|BE|BEL
+44,冰岛,Iceland|IS|ISL
+45,波多黎各,Puerto Rico|PR|PRI
+46,波兰,Poland|PL|POL
+47,波斯尼亚和黑塞哥维那,Bosnia and Herzegovina|BA|BIH|波黑
+48,玻利维亚,Bolivia|BO|BOL
+49,伯利兹,Belize|BZ|BLZ
+50,博茨瓦纳,Botswana|BW|BWA
+51,不丹,Bhutan|BT|BTN
+52,布基纳法索,Burkina Faso|BF|BFA
+53,布隆迪,Burundi|BI|BDI
+54,朝鲜,North Korea|DPRK|KP|PRK|朝鲜民主主义人民共和国
+55,赤道几内亚,Equatorial Guinea|GQ|GNQ
+56,丹麦,Denmark|DK|DNK
+57,德国,Germany|DE|DEU|Deutschland
+58,东帝汶,Timor-Leste|East Timor|TL|TLS
+59,多哥,Togo|TG|TGO
+60,多米尼加,Dominica|DM|DMA
+61,多明尼加共和国,Dominican Republic|DO|DOM
+62,俄罗斯,Russia|Russian Federation|RU|RUS
+63,厄瓜多尔,Ecuador|EC|ECU
+64,厄立特里亚,Eritrea|ER|ERI
+65,法国,France|FR|FRA
+66,法罗群岛,Faroe Islands|FO|FRO
+67,法属波利尼西亚,French Polynesia|PF|PYF
+68,法属圭亚那,French Guiana|GF|GUF
+69,菲律宾,Philippines|PH|PHL
+70,斐济,Fiji|FJ|FJI
+71,芬兰,Finland|FI|FIN
+72,佛得角,Cape Verde|CV|CPV
+73,冈比亚,Gambia|GM|GMB
+74,刚果共和国,Republic of the Congo|Congo-Brazzaville|CG|COG
+75,刚果民主共和国,DR Congo|DRC|Congo-Kinshasa|CD|COD
+76,哥伦比亚,Colombia|CO|COL
+77,哥斯达黎加,Costa Rica|CR|CRI
+78,格林纳达,Grenada|GD|GRD
+79,格陵兰,Greenland|GL|GRL
+80,格鲁吉亚,Georgia|GE|GEO
+81,古巴,Cuba|CU|CUB
+82,瓜德罗普岛,Guadeloupe|GP|GLP
+83,关岛,Guam|GU|GUM
+84,圭亚那,Guyana|GY|GUY
+85,哈萨克斯坦,Kazakhstan|KZ|KAZ
+86,海地,Haiti|HT|HTI
+87,荷兰,Netherlands|Holland|NL|NLD
+88,荷属安的列斯群岛,Netherlands Antilles|AN|ANT
+89,黑山,Montenegro|ME|MNE
+90,洪都拉斯,Honduras|HN|HND
+91,吉布提,Djibouti|DJ|DJI
+92,吉尔吉斯斯坦,Kyrgyzstan|KG|KGZ
+93,几内亚,Guinea|GN|GIN
+94,几内亚比绍,Guinea-Bissau|GW|GNB
+95,加纳,Ghana|GH|GHA
+96,加蓬,Gabon|GA|GAB
+97,柬埔寨,Cambodia|KH|KHM
+98,捷克共和国,Czech Republic|Czechia|CZ|CZE|捷克
+99,津巴布韦,Zimbabwe|ZW|ZWE
+100,喀麦隆,Cameroon|CM|CMR
+101,卡塔尔,Qatar|QA|QAT
+102,开曼群岛,Cayman Islands|KY|CYM
+103,科摩罗,Comoros|KM|COM
+104,科威特,Kuwait|KW|KWT
+105,克罗地亚,Croatia|HR|HRV
+106,肯尼亚,Kenya|KE|KEN
+107,库克群岛,Cook Islands|CK|COK
+108,拉脱维亚,Latvia|LV|LVA
+109,莱索托,Lesotho|LS|LSO
+110,老挝,Laos|LA|LAO
+111,黎巴嫩,Lebanon|LB|LBN
+112,立陶宛,Lithuania|LT|LTU
+113,利比里亚,Liberia|LR|LBR
+114,利比亚,Libya|LY|LBY
+115,列支敦士登,Liechtenstein|LI|LIE
+116,留尼旺岛,Reunion|RE|REU
+117,卢森堡,Luxembourg|LU|LUX
+118,卢旺达,Rwanda|RW|RWA
+119,罗马尼亚,Romania|RO|ROU
+120,马达加斯加,Madagascar|MG|MDG
+121,马尔代夫,Maldives|MV|MDV
+122,马耳他,Malta|MT|MLT
+123,马拉维,Malawi|MW|MWI
+124,马里,Mali|ML|MLI
+125,马其顿,Macedonia|North Macedonia|MK|MKD
+126,马提尼克,Martinique|MQ|MTQ
+127,毛里求斯,Mauritius|MU|MUS
+128,毛里塔尼亚,Mauritania|MR|MRT
+129,蒙古,Mongolia|MN|MNG
+130,蒙特塞拉特,Montserrat|MS|MSR
+131,孟加拉,Bangladesh|BD|BGD|孟加拉国
+132,秘鲁,Peru|PE|PER
+133,摩尔多瓦,Moldova|MD|MDA
+134,摩洛哥,Morocco|MA|MAR
+135,摩纳哥,Monaco|MC|MCO
+136,莫桑比克,Mozambique|MZ|MOZ
+137,墨西哥,Mexico|MX|MEX
+138,纳米比亚,Namibia|NA|NAM
+139,南非,South Africa|ZA|ZAF
+140,南苏丹,South Sudan|SS|SSD
+141,尼泊尔,Nepal|NP|NPL
+142,尼加拉瓜,Nicaragua|NI|NIC
+143,尼日尔,Niger|NE|NER
+144,尼日利亚,Nigeria|NG|NGA
+145,挪威,Norway|NO|NOR
+146,葡萄牙,Portugal|PT|PRT
+147,瑞典,Sweden|SE|SWE
+148,瑞士,Switzerland|CH|CHE
+149,萨尔瓦多,El Salvador|SV|SLV
+150,萨摩亚,Samoa|WS|WSM
+151,塞尔维亚,Serbia|RS|SRB
+152,塞拉利昂,Sierra Leone|SL|SLE
+153,塞内加尔,Senegal|SN|SEN
+154,塞浦路斯,Cyprus|CY|CYP
+155,塞舌尔,Seychelles|SC|SYC
+156,沙特阿拉伯,Saudi Arabia|SA|SAU
+157,圣多美和普林西比,Sao Tome and Principe|ST|STP
+158,圣基茨和尼维斯,Saint Kitts and Nevis|KN|KNA
+159,圣卢西亚,Saint Lucia|LC|LCA
+160,圣马力诺,San Marino|SM|SMR
+161,圣皮埃尔和密克隆群岛,Saint Pierre and Miquelon|PM|SPM
+162,圣文森特和格林纳丁斯,Saint Vincent and the Grenadines|VC|VCT
+163,斯里兰卡,Sri Lanka|LK|LKA
+164,斯洛伐克,Slovakia|SK|SVK
+165,斯洛文尼亚,Slovenia|SI|SVN
+166,斯威士兰,Eswatini|Swaziland|SZ|SWZ
+167,苏丹,Sudan|SD|SDN
+168,苏里南,Suriname|SR|SUR
+169,索马里,Somalia|SO|SOM
+170,塔吉克斯坦,Tajikistan|TJ|TJK
+171,泰国,Thailand|TH|THA
+172,坦桑尼亚,Tanzania|TZ|TZA
+173,汤加,Tonga|TO|TON
+174,特克斯和凯科斯群岛,Turks and Caicos Islands|TC|TCA
+175,特里尼达和多巴哥,Trinidad and Tobago|TT|TTO
+176,突尼斯,Tunisia|TN|TUN
+177,土耳其,Turkey|Turkiye|TR|TUR
+178,土库曼斯坦,Turkmenistan|TM|TKM
+179,瓦努阿图,Vanuatu|VU|VUT
+180,危地马拉,Guatemala|GT|GTM
+181,委内瑞拉,Venezuela|VE|VEN
+182,文莱,Brunei|BN|BRN
+183,乌干达,Uganda|UG|UGA
+184,乌克兰,Ukraine|UA|UKR
+185,乌拉圭,Uruguay|UY|URY
+186,乌兹别克斯坦,Uzbekistan|UZ|UZB
+187,西班牙,Spain|ES|ESP
+188,希腊,Greece|GR|GRC
+189,象牙海岸,Ivory Coast|Cote d'Ivoire|CI|CIV|科特迪瓦
+190,新喀里多尼亚,New Caledonia|NC|NCL
+191,匈牙利,Hungary|HU|HUN
+192,叙利亚,Syria|SY|SYR
+193,牙买加,Jamaica|JM|JAM
+194,亚美尼亚,Armenia|AM|ARM
+195,也门,Yemen|YE|YEM
+196,伊拉克,Iraq|IQ|IRQ
+197,伊朗,Iran|IR|IRN
+198,以色列,Israel|IL|ISR
+199,意大利,Italy|IT|ITA
+200,印度,India|IN|IND
+201,印尼,Indonesia|ID|IDN|印度尼西亚
+202,英国,United Kingdom|UK|GB|GBR|Great Britain|Britain|England|英格兰|大不列颠
+203,英属维尔京群岛,British Virgin Islands|VG|VGB
+204,约旦,Jordan|JO|JOR
+205,越南,Vietnam|VN|VNM
+206,赞比亚,Zambia|ZM|ZMB
+207,泽西岛,Jersey|JE|JEY
+208,乍得,Chad|TD|TCD
+209,直布罗陀,Gibraltar|GI|GIB
+210,智利,Chile|CL|CHL
+211,中非共和国,Central African Republic|CAR|CF|CAF
+212,科索沃,Kosovo|XK|KOS

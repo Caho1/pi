@@ -180,6 +180,7 @@ def extract_profile(
     *,
     source_url_override: Optional[str] = None,
     rules_only: bool = False,
+    existing_bio: Optional[str] = None,
 ) -> dict:
     if _is_url(url_or_path):
         wos_profile = webofscience.extract_profile(url_or_path)
@@ -195,7 +196,12 @@ def extract_profile(
     else:
         import llm_client  # imported lazily so --rules-only doesn't need openai pkg
         cleaned = html_cleaner.clean(html)
-        llm_fields = llm_client.call_llm(cleaned, rule_fields, final_url)
+        llm_fields = llm_client.call_llm(
+            cleaned,
+            rule_fields,
+            final_url,
+            existing_bio=existing_bio,
+        )
 
     merged, from_rule, from_llm = _merge(rule_fields, llm_fields)
     merged["contact_preferred"] = _derive_preferred(merged.get("email"), merged.get("phone"))
@@ -215,10 +221,11 @@ def extract_profile(
 
 
 def _cli(argv: Optional[list[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description="Extract expert profile into an 18-field JSON.")
+    ap = argparse.ArgumentParser(description="Extract expert profile into a structured JSON.")
     ap.add_argument("source", help="URL, local HTML path, or a file of URLs if --batch")
     ap.add_argument("--out", help="Write output to this file (default: stdout)")
     ap.add_argument("--source-url", help="When source is a local HTML, override the URL used for avatar resolution / TLD")
+    ap.add_argument("--existing-bio", help="Optional current bio text; when provided, the LLM rewrites bio using both sources")
     ap.add_argument("--rules-only", action="store_true", help="Skip the LLM call; useful for offline rule-layer testing")
     ap.add_argument("--batch", action="store_true", help="Treat source as a newline-delimited list of URLs")
     ap.add_argument("--concurrency", type=int, default=1, help="(batch) concurrent workers")
@@ -228,10 +235,12 @@ def _cli(argv: Optional[list[str]] = None) -> int:
         return _run_batch(args)
 
     try:
+        existing_bio = args.existing_bio or os.environ.get("EXPERT_PROFILE_EXISTING_BIO")
         result = extract_profile(
             args.source,
             source_url_override=args.source_url,
             rules_only=args.rules_only,
+            existing_bio=existing_bio,
         )
     except Exception as e:  # top-level: report cleanly
         err = {"_error": str(e), "_meta": {"source_url": args.source}}

@@ -320,6 +320,7 @@ def extract_profile(
         "admin_title": None,
         "phone": None,
         "email": None,
+        "contact": None,
         "contact_preferred": None,
         "bio": record.get("summary") if isinstance(record.get("summary"), str) else None,
         "avatar_url": record.get("photoUrlLarge") if isinstance(record.get("photoUrlLarge"), str) else None,
@@ -327,6 +328,7 @@ def extract_profile(
         # generic pipeline will populate them when a homepage URL is used instead.
         "social_positions": [],
         "journal_resources": [],
+        "title": [],
         "tags": empty_tags(),
     }
 

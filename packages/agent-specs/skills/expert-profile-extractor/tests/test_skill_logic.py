@@ -132,6 +132,38 @@ class ExpertProfileSkillLogicTests(unittest.TestCase):
             max_retries=0,
         )
 
+    @patch("llm_client._client")
+    @patch("llm_client._model", return_value="glm-5")
+    def test_llm_client_uses_json_mode_and_disables_thinking_for_glm5(self, mock_model, mock_client_factory):
+        response = MagicMock()
+        response.choices = [MagicMock(message=MagicMock(content='{"ok": true}'))]
+
+        client = MagicMock()
+        client.chat.completions.create.return_value = response
+        mock_client_factory.return_value = client
+
+        result = llm_client.call_llm(
+            cleaned_text="Professor profile",
+            known={"institution": "某大学"},
+            source_url="https://example.edu/profile",
+        )
+
+        self.assertEqual(result, {"ok": True})
+        client.chat.completions.create.assert_called_once()
+        kwargs = client.chat.completions.create.call_args.kwargs
+        self.assertEqual(kwargs["model"], "glm-5")
+        self.assertEqual(kwargs["response_format"], {"type": "json_object"})
+        self.assertEqual(kwargs["extra_body"], {"enable_thinking": False})
+        self.assertEqual(kwargs["temperature"], 0)
+        self.assertEqual(kwargs["messages"][0]["role"], "system")
+        self.assertEqual(kwargs["messages"][1]["role"], "user")
+
+    def test_llm_client_completion_options_keep_json_mode_for_other_models(self):
+        self.assertEqual(
+            llm_client._completion_options("MiniMax-M2.5"),
+            {"response_format": {"type": "json_object"}},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

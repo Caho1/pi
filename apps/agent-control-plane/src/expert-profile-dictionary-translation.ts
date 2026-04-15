@@ -1,7 +1,15 @@
 type EnumDictionary = Record<number, string>;
+// 业务侧约定的字典标签对象：`value` 是字典编码（命中字典时为数字，未命中为 null），
+// `name` 是展示用的中文标签。保留 unknown 是为了让未命中字典的原始输入值也能照常下发。
 type DictionaryItem = {
-  key: number | null;
-  value: unknown;
+  value: number | null;
+  name: unknown;
+};
+
+type BusinessTags = {
+  position: string[];
+  experience: string[];
+  other: string[];
 };
 
 const PROFESSIONAL_LABELS: EnumDictionary = {
@@ -300,6 +308,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isDictionaryItem(value: unknown): value is DictionaryItem {
+  return isPlainObject(value) && "value" in value && "name" in value;
+}
+
 function parseNumericValue(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isInteger(value)) {
     return value;
@@ -332,11 +344,15 @@ function toScalarDictionaryItem(value: unknown, dictionary: EnumDictionary): Dic
     return value;
   }
 
+  if (isDictionaryItem(value)) {
+    return value;
+  }
+
   const numericValue = parseNumericValue(value);
   if (numericValue !== undefined) {
     return {
-      key: dictionary[numericValue] ? numericValue : numericValue,
-      value: dictionary[numericValue] ?? value,
+      value: numericValue,
+      name: dictionary[numericValue] ?? value,
     };
   }
 
@@ -344,21 +360,21 @@ function toScalarDictionaryItem(value: unknown, dictionary: EnumDictionary): Dic
     const matchedKey = findEnumKeyByLabel(value, dictionary);
     if (matchedKey !== undefined) {
       return {
-        key: matchedKey,
-        value: dictionary[matchedKey],
+        value: matchedKey,
+        name: dictionary[matchedKey],
       };
     }
   }
 
   return {
-    key: null,
-    value,
+    value: null,
+    name: value,
   };
 }
 
 function toDictionaryItemList(value: unknown, dictionary: EnumDictionary): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => toScalarDictionaryItem(item, dictionary));
+    return value.map((item) => (isDictionaryItem(item) ? item : toScalarDictionaryItem(item, dictionary)));
   }
 
   const translated = toScalarDictionaryItem(value, dictionary);
@@ -367,14 +383,18 @@ function toDictionaryItemList(value: unknown, dictionary: EnumDictionary): unkno
 
 function translateBitmask(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => toScalarDictionaryItem(item, TITLE_LABELS));
+    return value.map((item) => (isDictionaryItem(item) ? item : toScalarDictionaryItem(item, TITLE_LABELS)));
+  }
+
+  if (isDictionaryItem(value)) {
+    return [value];
   }
 
   const numericValue = parseNumericValue(value);
   if (numericValue !== undefined) {
     const translated = TITLE_FLAGS.filter(({ flag }) => (numericValue & flag) === flag).map(({ flag, label }) => ({
-      key: flag,
-      value: label,
+      value: flag,
+      name: label,
     }));
 
     if (translated.length > 0 || numericValue === 0) {
@@ -383,8 +403,8 @@ function translateBitmask(value: unknown): unknown {
 
     return [
       {
-        key: numericValue,
-        value,
+        value: numericValue,
+        name: value,
       },
     ];
   }
@@ -394,8 +414,8 @@ function translateBitmask(value: unknown): unknown {
     if (matchedKey !== undefined) {
       return [
         {
-          key: matchedKey,
-          value: TITLE_LABELS[matchedKey],
+          value: matchedKey,
+          name: TITLE_LABELS[matchedKey],
         },
       ];
     }
@@ -403,38 +423,152 @@ function translateBitmask(value: unknown): unknown {
 
   return [
     {
-      key: null,
-      value,
+      value: null,
+      name: value,
     },
   ];
 }
 
-const FIELD_TRANSLATORS: Record<string, (value: unknown) => unknown> = {
-  professional: (value) => toScalarDictionaryItem(value, PROFESSIONAL_LABELS),
-  academic_title: (value) => toScalarDictionaryItem(value, PROFESSIONAL_LABELS),
-  "职称": (value) => toScalarDictionaryItem(value, PROFESSIONAL_LABELS),
-  domain: (value) => toScalarDictionaryItem(value, DOMAIN_LABELS),
-  research_areas: (value) => toDictionaryItemList(value, DOMAIN_LABELS),
-  "研究领域": (value) => toDictionaryItemList(value, DOMAIN_LABELS),
-  title: translateBitmask,
-  "头衔": translateBitmask,
-  country: (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
-  country_region: (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
-  "国家": (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
-  "国家地区": (value) => toScalarDictionaryItem(value, COUNTRY_LABELS),
-};
+function firstPresent(structured: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    if (!(key in structured)) {
+      continue;
+    }
+    const value = structured[key];
+    if (value === null || value === undefined || value === "") {
+      continue;
+    }
+    if (Array.isArray(value) && value.length === 0) {
+      continue;
+    }
+    return value;
+  }
+  return undefined;
+}
+
+function toNullableString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function toStringList(value: unknown): string[] {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[;\n；、]+/g)
+      : [];
+  if (!Array.isArray(rawValues)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const item of rawValues) {
+    if (typeof item !== "string") {
+      continue;
+    }
+    const cleaned = item.trim();
+    if (!cleaned) {
+      continue;
+    }
+    if (seen.has(cleaned)) {
+      continue;
+    }
+    seen.add(cleaned);
+    normalized.push(cleaned);
+  }
+  return normalized;
+}
+
+function toNullableScalarDictionaryItem(value: unknown, dictionary: EnumDictionary): DictionaryItem | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  return toScalarDictionaryItem(value, dictionary) as DictionaryItem;
+}
+
+function toDictionaryItemArray(value: unknown, dictionary: EnumDictionary): DictionaryItem[] {
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+  const translated = toDictionaryItemList(value, dictionary);
+  return Array.isArray(translated) ? (translated as DictionaryItem[]) : [];
+}
+
+function toTitleArray(value: unknown): DictionaryItem[] {
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+  const translated = translateBitmask(value);
+  return Array.isArray(translated) ? (translated as DictionaryItem[]) : [];
+}
+
+function translateSex(value: unknown): string | null {
+  if (value === "male") {
+    return "男";
+  }
+  if (value === "female") {
+    return "女";
+  }
+  return toNullableString(value);
+}
+
+function normalizeTags(value: unknown): BusinessTags {
+  const empty: BusinessTags = {
+    position: [],
+    experience: [],
+    other: [],
+  };
+
+  if (!isPlainObject(value)) {
+    return empty;
+  }
+
+  const position = toStringList(firstPresent(value, ["position", "academic_honors"]));
+  const experience = toStringList(firstPresent(value, ["experience", "experiences"]));
+  const other = toStringList([
+    ...toStringList(firstPresent(value, ["other"])),
+    ...toStringList(firstPresent(value, ["institution_tier"])),
+    ...toStringList(firstPresent(value, ["others"])),
+  ]);
+
+  return {
+    position,
+    experience,
+    other,
+  };
+}
 
 export function translateExpertProfileBusinessStructured(structured: unknown): unknown {
   if (!isPlainObject(structured)) {
     return structured;
   }
 
-  const translated: Record<string, unknown> = { ...structured };
-  for (const [field, translator] of Object.entries(FIELD_TRANSLATORS)) {
-    if (field in structured) {
-      translated[field] = translator(structured[field]);
-    }
-  }
-
-  return translated;
+  // 业务接口对外暴露的是数字化系统约定的字段名，不把底层 skill 的历史命名
+  // （academic_title / research_areas / avatar_url 等）直接透传给上游。
+  return {
+    avatar: toNullableString(firstPresent(structured, ["avatar", "avatar_url"])),
+    name: toNullableString(firstPresent(structured, ["name"])),
+    sex: translateSex(firstPresent(structured, ["sex", "gender"])),
+    birthday: toNullableString(firstPresent(structured, ["birthday", "birth_date"])),
+    country: toNullableScalarDictionaryItem(firstPresent(structured, ["country", "country_region"]), COUNTRY_LABELS),
+    organization: toNullableString(firstPresent(structured, ["organization", "institution"])),
+    department: toNullableString(firstPresent(structured, ["department", "college_department"])),
+    domain: toDictionaryItemArray(firstPresent(structured, ["domain", "research_areas"]), DOMAIN_LABELS),
+    direction: toStringList(firstPresent(structured, ["direction", "research_directions"])),
+    professional: toNullableScalarDictionaryItem(firstPresent(structured, ["professional", "academic_title"]), PROFESSIONAL_LABELS),
+    position: toNullableString(firstPresent(structured, ["position", "admin_title"])),
+    phone: toNullableString(firstPresent(structured, ["phone"])),
+    email: toNullableString(firstPresent(structured, ["email"])),
+    // `contact` 只表示 phone / email 之外的备用联系方式，不允许用
+    // `contact_preferred`（邮箱/电话偏好）来兜底，否则会误导业务侧。
+    contact: toNullableString(firstPresent(structured, ["contact"])),
+    bio: toNullableString(firstPresent(structured, ["bio", "introduction", "intro"])),
+    academic: toStringList(firstPresent(structured, ["academic", "social_positions"])),
+    journal: toStringList(firstPresent(structured, ["journal", "journal_resources"])),
+    title: toTitleArray(firstPresent(structured, ["title"])),
+    tags: normalizeTags(firstPresent(structured, ["tags"])),
+  };
 }

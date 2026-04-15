@@ -1,4 +1,4 @@
-"""Pydantic model for the 18-field expert profile output."""
+"""Pydantic model for the expert profile output."""
 from __future__ import annotations
 
 from typing import List, Literal, Optional
@@ -44,11 +44,13 @@ class ExpertProfile(BaseModel):
     admin_title: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+    contact: Optional[str] = None
     contact_preferred: Optional[Literal["email", "phone", "other"]] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
     social_positions: List[str] = Field(default_factory=list)
     journal_resources: List[str] = Field(default_factory=list)
+    title: List[str] = Field(default_factory=list)
     tags: ExpertTags = Field(default_factory=ExpertTags)
     meta: ProfileMeta = Field(alias="_meta")
 
@@ -69,8 +71,10 @@ LLM_FIELDS = [
     "academic_title",
     "admin_title",
     "bio",
+    "contact",
     "social_positions",
     "journal_resources",
+    "title",
     "tags",
 ]
 
@@ -83,6 +87,7 @@ LIST_FIELDS = (
     "research_directions",
     "social_positions",
     "journal_resources",
+    "title",
 )
 
 # Object-valued LLM fields (not None, not [])
@@ -118,8 +123,8 @@ ALL_FIELDS = [
     "name", "gender", "birth_date", "country_region", "institution",
     "college_department", "research_areas", "research_directions",
     "academic_title", "admin_title", "phone", "email",
-    "contact_preferred", "bio", "avatar_url",
-    "social_positions", "journal_resources", "tags",
+    "contact", "contact_preferred", "bio", "avatar_url",
+    "social_positions", "journal_resources", "title", "tags",
 ]
 
 

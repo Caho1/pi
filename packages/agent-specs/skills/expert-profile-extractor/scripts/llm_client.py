@@ -99,24 +99,45 @@ def _model() -> str:
     ) or "glm-5"
 
 
-def call_llm(cleaned_text: str, known: dict, source_url: str) -> dict:
+def _completion_options(model: str) -> dict:
+    options = {
+        "response_format": {"type": "json_object"},
+    }
+    model_name = (model or "").strip().lower()
+    # 百炼兼容层下的 glm-5 支持结构化输出，但要显式关闭思考模式，
+    # 否则会额外返回 reasoning_content，既更慢，也更容易干扰提取耗时。
+    if model_name.startswith("glm-5"):
+        options["extra_body"] = {"enable_thinking": False}
+    return options
+
+
+def call_llm(
+    cleaned_text: str,
+    known: dict,
+    source_url: str,
+    *,
+    existing_bio: Optional[str] = None,
+) -> dict:
     """Send cleaned text + known fields to the LLM, receive JSON dict."""
     system_prompt = PROMPT_PATH.read_text(encoding="utf-8")
+    model = _model()
 
     user_payload = {
         "source_url": source_url,
         "known_fields_from_rules": {k: v for k, v in known.items() if v},
         "page_text": cleaned_text,
     }
+    if existing_bio and existing_bio.strip():
+        user_payload["existing_bio"] = existing_bio.strip()
 
     resp = _client().chat.completions.create(
-        model=_model(),
-        response_format={"type": "json_object"},
+        model=model,
         temperature=0,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
         ],
+        **_completion_options(model),
     )
     raw = resp.choices[0].message.content or "{}"
     try:

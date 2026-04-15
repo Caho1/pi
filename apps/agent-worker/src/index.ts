@@ -870,7 +870,7 @@ export function resolveOpenAICompatibleCompat(providerName: string):
   | undefined {
   if (providerName === "aliyun-bailian") {
     return {
-      // DashScope 的 glm-5 不接受非标准的 `developer` 角色，这里强制退回 `system`。
+      // DashScope 的 glm-5 系列不接受非标准的 `developer` 角色，这里强制退回 `system`。
       supportsDeveloperRole: false,
       supportsReasoningEffort: true,
       maxTokensField: "max_completion_tokens",

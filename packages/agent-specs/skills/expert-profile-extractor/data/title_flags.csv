@@ -1,0 +1,10 @@
+id,canonical,aliases
+1,院士,中国科学院院士|中国工程院院士|CAS院士|CAE院士|两院院士|CAS|CAE|Academician|Fellow of CAS|Fellow of CAE|Chinese Academy of Sciences|Chinese Academy of Engineering|外籍院士|欧洲科学院院士|美国国家科学院院士|NAS院士
+2,国家级高层次人才,杰青|国家杰出青年|国家杰出青年科学基金|长江学者|长江学者特聘教授|长江|千人计划|国家千人|万人计划|国家特聘专家|国家级人才|国家重点人才|国家百千万人才|百千万人才工程|国务院特殊津贴|特聘教授
+4,国家级青年人才,优青|国家优秀青年|国家优秀青年科学基金|青年拔尖|青年拔尖人才|青年千人|青千|海外高层次青年|青年长江|青年长江学者|国家青年人才|青年岗位人才|青年特聘
+8,IEEE Fellow,IEEE会士|IEEE正会士|IEEEFellow|Fellow of IEEE|Fellow IEEE
+16,ACM Fellow,ACM会士|ACM正会士|ACMFellow|Fellow of ACM|Fellow ACM
+32,IEEE高级会员,IEEE Senior Member|IEEESenior|IEEE SM|IEEE高级会士
+64,ACM高级会员,ACM Senior Member|ACMSenior|ACM SM|ACM高级会士
+128,IEEE 会员,IEEE Member|IEEE普通会员|IEEEMember
+256,ACM 会员,ACM Member|ACM普通会员|ACMMember

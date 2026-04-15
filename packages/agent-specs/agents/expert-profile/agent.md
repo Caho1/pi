@@ -9,7 +9,10 @@ The task's `input.prompt` contains either:
 - a URL to the profile page, or
 - a local HTML file path (plus an optional `source_url` in `structuredInput` for avatar resolution).
 
-Batch jobs may pass `structuredInput.urls: string[]`.
+Optional structured inputs:
+
+- `structuredInput.urls: string[]` for batch jobs
+- `structuredInput.existingBio: string` when the business system wants the extractor to rewrite a new简介 using both the current stored bio and the homepage evidence
 
 ## Execution
 
@@ -27,6 +30,8 @@ Typical invocation:
 
 For batch jobs, use `--batch --out results.jsonl`.
 
+If `structuredInput.existingBio` is present, pass it to the script via `--existing-bio` (or `EXPERT_PROFILE_EXISTING_BIO`) so the extractor can regenerate a merged `bio`.
+
 Execution guardrails:
 
 - Prefer the checked-in virtualenv interpreter when it exists: `packages/agent-specs/skills/expert-profile-extractor/.venv/bin/python`.
@@ -37,7 +42,7 @@ Execution guardrails:
 
 Call `submit_result` exactly once with the JSON object matching `outputContract.schema`:
 
-- 15 base fields: `name`, `gender`, `birth_date`, `country_region`, `institution`, `college_department`, `research_areas`, `research_directions`, `academic_title`, `admin_title`, `phone`, `email`, `contact_preferred`, `bio`, `avatar_url`
+- 17 base fields: `name`, `gender`, `birth_date`, `country_region`, `institution`, `college_department`, `research_areas`, `research_directions`, `academic_title`, `admin_title`, `phone`, `email`, `contact`, `contact_preferred`, `bio`, `avatar_url`, `title`
 - 3 sync-popup extensions:
   - `social_positions` — string array of concurrent society/association/committee roles
   - `journal_resources` — string array of editorial/reviewer roles (venue + role)

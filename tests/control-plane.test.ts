@@ -296,8 +296,28 @@ describe("control plane API", () => {
             result: {
               submissionMode: "submit_result",
               structured: {
+                avatar_url: "https://example.edu/avatar.png",
                 name: "张三",
+                gender: "male",
+                birth_date: "1987-03",
+                country_region: "中国",
                 institution: "某大学",
+                college_department: "计算机学院 / 人工智能系",
+                research_areas: ["人工智能"],
+                research_directions: ["具身智能", "多模态大模型"],
+                academic_title: "副教授",
+                admin_title: "博士生导师",
+                email: "zhangsan@example.edu",
+                contact_preferred: "email",
+                bio: "现任某大学副教授，长期从事人工智能与具身智能研究。",
+                social_positions: ["中国人工智能学会会员"],
+                journal_resources: ["《模式识别与人工智能》审稿人"],
+                tags: {
+                  academic_honors: ["学科带头人"],
+                  institution_tier: ["双一流"],
+                  experiences: ["参与学术社团"],
+                  others: ["导师职务"],
+                },
               },
             },
             artifacts: [],
@@ -330,14 +350,42 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: true,
       status: "SUCCEEDED",
-      requestId: "expert-biz-1",
-      runId: "run-expert-profile",
       promptTokens: 3500,
       completionTokens: 420,
       totalTokens: 3920,
       data: {
+        avatar: "https://example.edu/avatar.png",
         name: "张三",
-        institution: "某大学",
+        sex: "男",
+        birthday: "1987-03",
+        country: {
+          value: 1,
+          name: "中国",
+        },
+        organization: "某大学",
+        department: "计算机学院 / 人工智能系",
+        domain: [
+          {
+            value: 8,
+            name: "人工智能",
+          },
+        ],
+        direction: ["具身智能", "多模态大模型"],
+        professional: {
+          value: 2,
+          name: "副教授",
+        },
+        position: "博士生导师",
+        email: "zhangsan@example.edu",
+        contact: null,
+        bio: "现任某大学副教授，长期从事人工智能与具身智能研究。",
+        academic: ["中国人工智能学会会员"],
+        journal: ["《模式识别与人工智能》审稿人"],
+        tags: {
+          position: ["学科带头人"],
+          experience: ["参与学术社团"],
+          other: ["双一流", "导师职务"],
+        },
       },
       error: null,
     });
@@ -377,7 +425,6 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: false,
       status: null,
-      requestId: "expert-biz-auth-1",
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
@@ -446,29 +493,30 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: true,
       status: "SUCCEEDED",
-      requestId: "expert-biz-dicts-1",
       data: {
         professional: {
-          key: 2,
-          value: "副教授",
+          value: 2,
+          name: "副教授",
         },
-        domain: {
-          key: 8,
-          value: "人工智能",
-        },
+        domain: [
+          {
+            value: 8,
+            name: "人工智能",
+          },
+        ],
         title: [
           {
-            key: 1,
-            value: "院士",
+            value: 1,
+            name: "院士",
           },
           {
-            key: 8,
-            value: "IEEE Fellow",
+            value: 8,
+            name: "IEEE Fellow",
           },
         ],
         country: {
-          key: 9,
-          value: "美国",
+          value: 9,
+          name: "美国",
         },
       },
       error: null,
@@ -532,25 +580,24 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: true,
       status: "SUCCEEDED",
-      requestId: "expert-biz-dicts-2",
       data: {
-        academic_title: {
-          key: 2,
-          value: "副教授",
+        professional: {
+          value: 2,
+          name: "副教授",
         },
-        research_areas: [
+        domain: [
           {
-            key: 7,
-            value: "计算机科学与技术",
+            value: 7,
+            name: "计算机科学与技术",
           },
           {
-            key: 8,
-            value: "人工智能",
+            value: 8,
+            name: "人工智能",
           },
         ],
-        country_region: {
-          key: 9,
-          value: "美国",
+        country: {
+          value: 9,
+          name: "美国",
         },
       },
       error: null,
@@ -614,25 +661,24 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: true,
       status: "SUCCEEDED",
-      requestId: "expert-biz-dicts-3",
       data: {
-        academic_title: {
-          key: null,
-          value: "首席科学家",
+        professional: {
+          value: null,
+          name: "首席科学家",
         },
-        research_areas: [
+        domain: [
           {
-            key: 8,
-            value: "人工智能",
+            value: 8,
+            name: "人工智能",
           },
           {
-            key: null,
-            value: "具身智能",
+            value: null,
+            name: "具身智能",
           },
         ],
-        country_region: {
-          key: null,
-          value: "火星",
+        country: {
+          value: null,
+          name: "火星",
         },
       },
       error: null,
@@ -699,7 +745,6 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: true,
       status: "SUCCEEDED",
-      requestId: "expert-biz-auth-2",
       promptTokens: 12,
       completionTokens: 8,
       totalTokens: 20,
@@ -729,7 +774,6 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: false,
       status: null,
-      requestId: "expert-biz-2",
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
@@ -768,7 +812,6 @@ describe("control plane API", () => {
     expect(response.json()).toMatchObject({
       success: false,
       status: "FAILED",
-      requestId: "expert-biz-3",
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,

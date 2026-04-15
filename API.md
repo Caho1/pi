@@ -45,7 +45,7 @@
 本地默认地址：
 
 ```text
-http://127.0.0.1:3000
+http://192.168.135.172:3000
 ```
 
 生产环境请替换为你的网关或服务域名。
@@ -390,7 +390,7 @@ Authorization: Bearer <token>
 请求：
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
+curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   -H 'content-type: application/json' \
   -d '{
     "idempotencyKey": "demo-sync-001",
@@ -888,7 +888,7 @@ WF-20260414-001:code-review:v1
 ### 同步示例
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
+curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   -H 'content-type: application/json' \
   -d '{
     "idempotencyKey": "WF-1001:review:v1",
@@ -910,7 +910,7 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 ### 异步示例
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
+curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   -H 'content-type: application/json' \
   -d '{
     "idempotencyKey": "WF-2001:analysis:v1",
@@ -935,5 +935,5 @@ curl -X POST http://127.0.0.1:3000/v1/agent-tasks \
 ### 查询状态
 
 ```bash
-curl http://127.0.0.1:3000/v1/agent-tasks/<taskId>
+curl http://192.168.135.172:3000/v1/agent-tasks/<taskId>
 ```

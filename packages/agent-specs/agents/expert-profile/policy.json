@@ -2,7 +2,7 @@
   "agentType": "expert-profile",
   "version": "1.0.0",
   "displayName": "Expert Profile Extractor",
-  "description": "Extracts structured 18-field profiles from expert/faculty/researcher homepages using a rule-layer + LLM pipeline. Output is shaped to feed the 专家主页同步 popup (18 sync-checkbox fields including social_positions, journal_resources, and an enum-constrained tags object).",
+  "description": "Extracts structured expert profiles from faculty/researcher homepages using a rule-layer + LLM pipeline. Output is shaped to feed the 专家主页同步 popup, including social_positions, journal_resources, title, contact, and an enum-constrained tags object.",
   "skillRefs": [
     "/Users/jiahao/Desktop/PythonProject/pi/packages/agent-specs/skills/expert-profile-extractor/SKILL.md"
   ],
@@ -11,12 +11,12 @@
   "defaultModelPolicy": {
     "preferredRole": "default",
     "providerAllowlist": ["aliyun-bailian"],
-    "modelAllowlist": ["glm-5"],
+    "modelAllowlist": ["glm-5.1"],
     "failoverOrder": [
-      { "provider": "aliyun-bailian", "model": "glm-5" }
+      { "provider": "aliyun-bailian", "model": "glm-5.1" }
     ],
     "maxAttemptsPerProvider": 1,
-    "thinkingLevel": "medium",
+    "thinkingLevel": "off",
     "maxTokens": 8000
   },
   "defaultToolPolicy": {
@@ -47,8 +47,8 @@
         "name", "gender", "birth_date", "country_region", "institution",
         "college_department", "research_areas", "research_directions",
         "academic_title", "admin_title", "phone", "email",
-        "contact_preferred", "bio", "avatar_url",
-        "social_positions", "journal_resources", "tags", "_meta"
+        "contact", "contact_preferred", "bio", "avatar_url",
+        "social_positions", "journal_resources", "title", "tags", "_meta"
       ],
       "properties": {
         "name": { "type": ["string", "null"] },
@@ -63,11 +63,13 @@
         "admin_title": { "type": ["string", "null"] },
         "phone": { "type": ["string", "null"] },
         "email": { "type": ["string", "null"] },
+        "contact": { "type": ["string", "null"] },
         "contact_preferred": { "type": ["string", "null"], "enum": ["email", "phone", "other", null] },
         "bio": { "type": ["string", "null"] },
         "avatar_url": { "type": ["string", "null"] },
         "social_positions": { "type": "array", "items": { "type": "string" } },
         "journal_resources": { "type": "array", "items": { "type": "string" } },
+        "title": { "type": "array", "items": { "type": "string" } },
         "tags": {
           "type": "object",
           "required": ["academic_honors", "institution_tier", "experiences", "others"],

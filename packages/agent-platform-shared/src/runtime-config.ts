@@ -115,7 +115,7 @@ export function loadPlatformRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
           env.ALIYUN_BAILIAN_MODEL_ID ??
           env.DASHSCOPE_MODEL ??
           env.DASHSCOPE_MODEL_ID ??
-          "glm-5",
+          "glm-5.1",
         apiKeyEnvVar: aliyunApiKeyEnvVar,
         api: "openai-completions",
       },

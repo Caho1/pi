@@ -119,13 +119,21 @@ pip install -r scripts/requirements.txt
 # Preferred: Aliyun Bailian / DashScope
 export ALIYUN_BAILIAN_API_KEY="..."
 export ALIYUN_BAILIAN_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
-export ALIYUN_BAILIAN_MODEL_ID="glm-5"
+export ALIYUN_BAILIAN_MODEL_ID="glm-5.1"
 
 # Optional explicit overrides for this skill only
 export EXPERT_EXTRACTOR_API_KEY="..."
 export EXPERT_EXTRACTOR_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
 export EXPERT_EXTRACTOR_MODEL="glm-5"
 ```
+
+Current extraction-layer default:
+
+- outer scheduler default: `glm-5.1`
+- extraction layer default: `glm-5`
+- `chat/completions`
+- `response_format={"type":"json_object"}`
+- `enable_thinking=false` to reduce latency while preserving structured JSON output
 
 If the `EXPERT_EXTRACTOR_*` vars are unset, the client falls back in this order:
 

@@ -1,4 +1,5 @@
 import path from "node:path";
+import os from "node:os";
 
 import Fastify, { type FastifyInstance } from "fastify";
 
@@ -75,6 +76,21 @@ function readHeaderToken(headers: Record<string, unknown>): string | undefined {
   }
 
   return undefined;
+}
+
+function createTerminalLogPrefix(): string {
+  return new Date().toISOString();
+}
+
+function toSafeUrlPreview(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
 }
 
 export async function buildControlPlaneApp(options?: {
@@ -336,7 +352,6 @@ export async function buildControlPlaneApp(options?: {
   }
 
   function serializeExpertProfileResponse(input: {
-    requestId: string;
     record?: TaskRecord;
     validationError?: string;
     authError?: string;
@@ -345,9 +360,6 @@ export async function buildControlPlaneApp(options?: {
       return {
         success: false,
         status: null,
-        requestId: input.requestId,
-        taskId: null,
-        runId: null,
         ...extractBusinessTokenUsage(),
         data: null,
         error: {
@@ -362,9 +374,6 @@ export async function buildControlPlaneApp(options?: {
     return {
       success: input.record.status === "SUCCEEDED" || input.record.status === "PARTIAL",
       status: input.record.status,
-      requestId: input.requestId,
-      taskId: input.record.taskId,
-      runId: input.record.latestRunId ?? null,
       ...extractBusinessTokenUsage(input.record),
       data: translateExpertProfileBusinessStructured(input.record.result?.result?.structured ?? null),
       error: input.record.error ?? input.record.result?.error ?? null,
@@ -372,6 +381,19 @@ export async function buildControlPlaneApp(options?: {
   }
 
   const app = Fastify({ logger: false });
+
+  app.addHook("onRequest", async (request) => {
+    // 控制面默认不启用 Fastify 内建 logger，这里补一层轻量终端日志，
+    // 方便本地联调时直接在 `pnpm dev` 终端里看到每次调用。
+    (request as { _startedAtMs?: number })._startedAtMs = Date.now();
+    console.log(`${createTerminalLogPrefix()} -> ${request.method} ${request.url}`);
+  });
+
+  app.addHook("onResponse", async (request, reply) => {
+    const startedAtMs = (request as { _startedAtMs?: number })._startedAtMs ?? Date.now();
+    const durationMs = Date.now() - startedAtMs;
+    console.log(`${createTerminalLogPrefix()} <- ${request.method} ${request.url} ${reply.statusCode} ${durationMs}ms`);
+  });
 
   app.post("/v1/agent-tasks", async (request, reply) => {
     const body = request.body as CreateTaskRequest;
@@ -388,7 +410,6 @@ export async function buildControlPlaneApp(options?: {
       if (!requestToken || requestToken !== configuredToken) {
         return reply.code(401).send(
           serializeExpertProfileResponse({
-            requestId: body.requestId?.trim() || randomId("expert-profile"),
             authError: "Unauthorized: invalid or missing API token",
           }),
         );
@@ -401,19 +422,23 @@ export async function buildControlPlaneApp(options?: {
       const message = error instanceof Error ? error.message : String(error);
       return reply.code(400).send(
         serializeExpertProfileResponse({
-          requestId: body.requestId?.trim() || randomId("expert-profile"),
           validationError: message,
         }),
       );
     }
 
-    const { requestId, taskRequest } = buildExpertProfileTaskRequest(body);
+    const { taskRequest } = buildExpertProfileTaskRequest(body);
+    console.log(
+      `${createTerminalLogPrefix()} [expert-profile] submit tenant=${taskRequest.tenantId} timeoutMs=${taskRequest.timeoutMs} url=${taskRequest.input.prompt}`,
+    );
     const submitted = await submitTask(taskRequest);
+    console.log(
+      `${createTerminalLogPrefix()} [expert-profile] result status=${submitted.record.status} taskId=${submitted.record.taskId} error=${submitted.record.error?.code ?? submitted.record.result?.error?.code ?? "none"}`,
+    );
     return reply
       .code(mapExpertProfileResponseStatus(submitted.record))
       .send(
         serializeExpertProfileResponse({
-          requestId,
           record: submitted.record,
         }),
       );
@@ -649,10 +674,23 @@ function hasApprovalEvidence(metadata: CreateTaskRequest["input"]["metadata"]): 
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  function resolveLocalAccessUrl(port: number): string {
+    const interfaces = os.networkInterfaces();
+    for (const addresses of Object.values(interfaces)) {
+      for (const address of addresses ?? []) {
+        if (address.family === "IPv4" && !address.internal) {
+          return `http://${address.address}:${port}`;
+        }
+      }
+    }
+    return `http://127.0.0.1:${port}`;
+  }
+
   const app = await buildControlPlaneApp();
   const port = Number(process.env.PORT ?? "3000");
   await app.listen({ port, host: "0.0.0.0" });
-  console.log(`agent-control-plane listening on http://127.0.0.1:${port}`);
+  // 启动时直接打印局域网访问地址，方便业务方或同网段机器联调。
+  console.log(`agent-control-plane listening on ${resolveLocalAccessUrl(port)}`);
 }
 
 export { CallbackDispatcher } from "./callback-dispatcher.js";

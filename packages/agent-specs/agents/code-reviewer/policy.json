@@ -9,9 +9,9 @@
   "defaultModelPolicy": {
     "preferredRole": "default",
     "providerAllowlist": ["aliyun-bailian"],
-    "modelAllowlist": ["glm-5"],
+    "modelAllowlist": ["glm-5.1"],
     "failoverOrder": [
-      { "provider": "aliyun-bailian", "model": "glm-5" }
+      { "provider": "aliyun-bailian", "model": "glm-5.1" }
     ],
     "maxAttemptsPerProvider": 1,
     "thinkingLevel": "medium",
