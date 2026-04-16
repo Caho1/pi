@@ -304,6 +304,27 @@ const TITLE_FLAGS = [
 
 const TITLE_LABELS: EnumDictionary = Object.fromEntries(TITLE_FLAGS.map(({ flag, label }) => [flag, label]));
 
+const TAG_ID_TO_LABEL: Record<number, string> = {
+  1: "校级领导", 2: "院所领导", 3: "处级领导", 4: "学协会领导", 5: "学科带头人",
+  6: "QS Top 200", 7: "QS Top 500", 8: "双一流高校", 9: "985高校",
+  10: "本科院校", 11: "专科院校", 12: "公办", 13: "民办", 14: "合作办学",
+  15: "期刊任职", 16: "学术会议组织经验", 17: "学术评审经验", 18: "审修经历",
+  19: "学术文章原创经验", 20: "顶级学术机构", 21: "导师师资",
+  22: "深度话题创作", 23: "一般话题创作", 24: "专业曝光", 25: "社交拓展",
+  26: "知识分享", 27: "期刊审稿", 28: "同行预审", 29: "翻译", 30: "润色",
+  31: "审修", 32: "降重", 33: "头条创作", 34: "提案", 35: "会议嘉宾",
+  36: "艾思云课堂", 37: "论文一对一", 38: "其它", 39: "会议组委审稿",
+  40: "专家审稿", 41: "校对", 42: "排版", 43: "图表编辑", 44: "合作办会",
+  45: "经费筹集", 46: "专家推荐", 47: "场地申请", 48: "合作引荐",
+  49: "宣传组织", 50: "会务筹备", 51: "志愿者组织", 52: "参会推荐",
+  53: "投稿推荐", 54: "出版配合", 55: "翻译水平高", 56: "润色水平高",
+  57: "合作意愿强", 58: "配合程度高", 59: "有亲和力", 60: "学术资源丰富",
+  61: "时间观念强", 62: "任务质量高", 63: "学术水平高", 64: "翻译水平低",
+  65: "润色水平低", 66: "合作意愿弱", 67: "配合程度低", 68: "不好相处",
+  69: "学术资源欠缺", 70: "时间观念差", 71: "任务质量低", 72: "学术水平低",
+  73: "海外院校", 74: "终止合作", 75: "审批文件",
+};
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -458,7 +479,7 @@ function toStringList(value: unknown): string[] {
   const rawValues = Array.isArray(value)
     ? value
     : typeof value === "string"
-      ? value.split(/[;\n；、]+/g)
+      ? value.split(/[,;\n，；、]+/g)
       : [];
   if (!Array.isArray(rawValues)) {
     return [];
@@ -506,26 +527,33 @@ function toTitleArray(value: unknown): DictionaryItem[] {
 }
 
 function translateSex(value: unknown): string | null {
-  if (value === "male") {
-    return "男";
-  }
-  if (value === "female") {
-    return "女";
-  }
+  if (value === 1 || value === "1" || value === "male") return "男";
+  if (value === 2 || value === "2" || value === "female") return "女";
+  if (value === 0 || value === "0") return null;
   return toNullableString(value);
 }
 
 function normalizeTags(value: unknown): BusinessTags {
-  const empty: BusinessTags = {
-    position: [],
-    experience: [],
-    other: [],
-  };
+  const empty: BusinessTags = { position: [], experience: [], other: [] };
 
   if (!isPlainObject(value)) {
+    // 新 schema：逗号拼接的数字 ID 串，如 "5,8,21"
+    if (typeof value === "string" && value.trim()) {
+      const labels = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => {
+          const id = Number(s);
+          return Number.isInteger(id) && id > 0 ? (TAG_ID_TO_LABEL[id] ?? null) : s;
+        })
+        .filter((s): s is string => s !== null && s.length > 0);
+      return { position: [], experience: [], other: labels };
+    }
     return empty;
   }
 
+  // 旧 schema：{academic_honors, institution_tier, experiences, others} 对象
   const position = toStringList(firstPresent(value, ["position", "academic_honors"]));
   const experience = toStringList(firstPresent(value, ["experience", "experiences"]));
   const other = toStringList([
@@ -534,11 +562,7 @@ function normalizeTags(value: unknown): BusinessTags {
     ...toStringList(firstPresent(value, ["others"])),
   ]);
 
-  return {
-    position,
-    experience,
-    other,
-  };
+  return { position, experience, other };
 }
 
 export function translateExpertProfileBusinessStructured(structured: unknown): unknown {
@@ -550,7 +574,7 @@ export function translateExpertProfileBusinessStructured(structured: unknown): u
   // （academic_title / research_areas / avatar_url 等）直接透传给上游。
   return {
     avatar: toNullableString(firstPresent(structured, ["avatar", "avatar_url"])),
-    name: toNullableString(firstPresent(structured, ["name"])),
+    name: toNullableString(firstPresent(structured, ["surname", "name"])),
     sex: translateSex(firstPresent(structured, ["sex", "gender"])),
     birthday: toNullableString(firstPresent(structured, ["birthday", "birth_date"])),
     country: toNullableScalarDictionaryItem(firstPresent(structured, ["country", "country_region"]), COUNTRY_LABELS),
@@ -565,7 +589,7 @@ export function translateExpertProfileBusinessStructured(structured: unknown): u
     // `contact` 只表示 phone / email 之外的备用联系方式，不允许用
     // `contact_preferred`（邮箱/电话偏好）来兜底，否则会误导业务侧。
     contact: toNullableString(firstPresent(structured, ["contact"])),
-    bio: toNullableString(firstPresent(structured, ["bio", "introduction", "intro"])),
+    bio: toNullableString(firstPresent(structured, ["bio", "introduction", "intro", "content"])),
     academic: toStringList(firstPresent(structured, ["academic", "social_positions"])),
     journal: toStringList(firstPresent(structured, ["journal", "journal_resources"])),
     title: toTitleArray(firstPresent(structured, ["title"])),
