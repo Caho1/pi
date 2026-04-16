@@ -209,7 +209,7 @@ curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
 当前实现状态：
 
 - 外层调度模型使用阿里云百炼 `glm-5.1`，并关闭思考模式
-- 内层专家抽取脚本使用阿里云百炼 `glm-5`，启用 `json_object` 且关闭思考模式
+- 内层专家抽取脚本使用阿里云百炼 `qwen3.6-plus`，启用 `json_object`
 - `Web of Science` 作者页支持专用脚本路径，不走普通 HTML 抓取
 - 同步模式下任务失败会尽快返回，不会一直阻塞等待
 - 输出包含 15 个基础字段 + `social_positions`（社会兼职）/ `journal_resources`（期刊资源）/ `tags`（四分类枚举标签）
@@ -340,7 +340,7 @@ curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
       "inputTokens": 3500,
       "outputTokens": 420,
       "provider": "aliyun-bailian",
-      "model": "glm-5"
+      "model": "qwen3.6-plus"
     }
   }
 }

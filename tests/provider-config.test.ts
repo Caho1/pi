@@ -15,6 +15,7 @@ describe("platform runtime config", () => {
     process.env.RIGHT_CODES_MODEL_ID = "gpt-5-codex";
     process.env.RIGHT_CODES_API_KEY = "secret";
     process.env.PLATFORM_CALLBACK_ALLOWED_DOMAINS = "trusted.example.com, api.example.com ";
+    process.env.PLATFORM_TASK_QUEUE_MAX_CONCURRENT = "6";
 
     const config = loadPlatformRuntimeConfig();
 
@@ -22,6 +23,7 @@ describe("platform runtime config", () => {
     expect(config.providers.rightCodes.baseUrl).toBe("https://right.codes/codex/v1");
     expect(config.providers.rightCodes.modelId).toBe("gpt-5-codex");
     expect(config.providers.rightCodes.apiKeyEnvVar).toBe("RIGHT_CODES_API_KEY");
+    expect(config.taskQueue.maxConcurrent).toBe(6);
     expect(config.callbacks.allowedDomains).toEqual(["trusted.example.com", "api.example.com"]);
   });
 
@@ -53,6 +55,7 @@ describe("platform runtime config", () => {
           "ALIYUN_BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1",
           "ALIYUN_BAILIAN_MODEL_ID=glm-5.1",
           "EXPERT_PROFILE_API_TOKEN=expert-secret-dotenv",
+          "PLATFORM_TASK_QUEUE_MAX_CONCURRENT=5",
           "RIGHT_CODES_API_KEY=secret-from-dotenv",
           "RIGHT_CODES_BASE_URL=https://right.codes/codex/v1",
           "RIGHT_CODES_MODEL_ID=gpt-5.4",
@@ -63,6 +66,7 @@ describe("platform runtime config", () => {
       delete process.env.ALIYUN_BAILIAN_BASE_URL;
       delete process.env.ALIYUN_BAILIAN_MODEL_ID;
       delete process.env.EXPERT_PROFILE_API_TOKEN;
+      delete process.env.PLATFORM_TASK_QUEUE_MAX_CONCURRENT;
       delete process.env.RIGHT_CODES_API_KEY;
       delete process.env.RIGHT_CODES_BASE_URL;
       delete process.env.RIGHT_CODES_MODEL_ID;
@@ -77,6 +81,7 @@ describe("platform runtime config", () => {
       expect(config.providers.aliyunBailian.modelId).toBe("glm-5.1");
       expect(config.providers.aliyunBailian.api).toBe("openai-completions");
       expect(config.businessApi.expertProfileToken).toBe("expert-secret-dotenv");
+      expect(config.taskQueue.maxConcurrent).toBe(5);
       expect(process.env.RIGHT_CODES_API_KEY).toBe("secret-from-dotenv");
       expect(config.providers.rightCodes.enabled).toBe(true);
       expect(config.providers.rightCodes.modelId).toBe("gpt-5.4");

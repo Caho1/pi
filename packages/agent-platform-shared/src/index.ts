@@ -28,7 +28,9 @@ export async function readJsonFile<T>(filePath: string): Promise<T> {
 
 export async function writeJsonFile(filePath: string, value: unknown): Promise<void> {
   await ensureDir(path.dirname(filePath));
-  await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const tempFilePath = `${filePath}.${randomId("tmp")}`;
+  await fs.writeFile(tempFilePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await fs.rename(tempFilePath, filePath);
 }
 
 export async function readTextFileIfExists(filePath: string): Promise<string | undefined> {
@@ -321,6 +323,7 @@ export class DefaultSpecCompiler {
 export class JsonFileTaskRepository {
   private readonly tasksDir: string;
   private readonly idempotencyFile: string;
+  private writeChain: Promise<void> = Promise.resolve();
 
   constructor(private readonly runtimeRoot: string) {
     this.tasksDir = path.join(runtimeRoot, "data", "tasks");
@@ -338,10 +341,12 @@ export class JsonFileTaskRepository {
   }
 
   async save(record: TaskRecord): Promise<void> {
-    await writeJsonFile(this.taskFile(record.taskId), record);
-    const index = await this.readIdempotencyIndex();
-    index[record.idempotencyFingerprint] = record.taskId;
-    await writeJsonFile(this.idempotencyFile, index);
+    await this.enqueueWrite(async () => {
+      await writeJsonFile(this.taskFile(record.taskId), record);
+      const index = await this.readIdempotencyIndex();
+      index[record.idempotencyFingerprint] = record.taskId;
+      await writeJsonFile(this.idempotencyFile, index);
+    });
   }
 
   async get(taskId: string): Promise<TaskRecord | undefined> {
@@ -391,6 +396,14 @@ export class JsonFileTaskRepository {
 
   private taskFile(taskId: string): string {
     return path.join(this.tasksDir, `${taskId}.json`);
+  }
+
+  private enqueueWrite(operation: () => Promise<void>): Promise<void> {
+    // 仓库索引和任务记录是两份独立文件；这里把写操作串成单链，
+    // 避免并发保存时出现“任务文件已更新，但幂等索引被旧值覆盖”的竞态。
+    const next = this.writeChain.then(operation);
+    this.writeChain = next.catch(() => undefined);
+    return next;
   }
 }
 

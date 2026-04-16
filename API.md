@@ -687,7 +687,7 @@ curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   "byProvider": [
     {
       "provider": "aliyun-bailian",
-      "model": "glm-5",
+      "model": "qwen3.6-plus",
       "tasks": 12,
       "costUsd": 4.3
     }

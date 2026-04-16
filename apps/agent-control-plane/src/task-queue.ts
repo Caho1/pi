@@ -17,33 +17,64 @@ interface QueueItem {
 }
 
 export class InlineTaskQueue implements TaskQueue {
-  private readonly items: string[] = [];
-  private running = false;
+  private readonly items: Array<{
+    taskId: string;
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }> = [];
+  private activeCount = 0;
 
-  constructor(private readonly onProcess: (taskId: string) => Promise<void>) {}
+  constructor(
+    private readonly onProcess: (taskId: string) => Promise<void>,
+    private readonly options: {
+      maxConcurrent?: number;
+    } = {},
+  ) {}
 
   enqueue(taskId: string): Promise<void> {
-    this.items.push(taskId);
-    return this.run();
+    return new Promise<void>((resolve, reject) => {
+      this.items.push({
+        taskId,
+        resolve,
+        reject,
+      });
+      this.drain();
+    });
   }
 
-  private async run(): Promise<void> {
-    if (this.running) {
-      return;
-    }
-
-    this.running = true;
-    try {
-      while (this.items.length > 0) {
-        const taskId = this.items.shift();
-        if (!taskId) {
-          continue;
-        }
-        await this.onProcess(taskId);
+  private drain(): void {
+    while (this.activeCount < this.maxConcurrent) {
+      const next = this.items.shift();
+      if (!next) {
+        return;
       }
-    } finally {
-      this.running = false;
+
+      this.activeCount += 1;
+      void this.runOne(next);
     }
+  }
+
+  private async runOne(item: {
+    taskId: string;
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }): Promise<void> {
+    try {
+      // 每个入队任务都占用一个独立并发槽位，处理完成后立刻释放给下一个任务，
+      // 这样同步接口不会再被“前一个慢任务”整条串行阻塞。
+      await this.onProcess(item.taskId);
+      item.resolve();
+    } catch (error) {
+      item.reject(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      this.activeCount -= 1;
+      this.drain();
+    }
+  }
+
+  private get maxConcurrent(): number {
+    const configured = this.options.maxConcurrent ?? 1;
+    return Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 1;
   }
 }
 

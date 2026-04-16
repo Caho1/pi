@@ -152,6 +152,8 @@ export async function buildControlPlaneApp(options?: {
     options?.taskQueue ??
     new InlineTaskQueue(async (taskId) => {
       await coordinator.processSafely(taskId);
+    }, {
+      maxConcurrent: runtimeConfig.taskQueue.maxConcurrent,
     });
 
   function serializeTask(record: TaskRecord) {

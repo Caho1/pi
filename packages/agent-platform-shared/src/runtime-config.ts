@@ -15,6 +15,9 @@ export interface PlatformRuntimeConfig {
     rightCodes: OpenAICompatibleProviderConfig;
     aliyunBailian: OpenAICompatibleProviderConfig;
   };
+  taskQueue: {
+    maxConcurrent: number;
+  };
   businessApi: {
     expertProfileToken?: string;
   };
@@ -78,6 +81,20 @@ function firstPresentEnvName(
   return candidates.find((name) => Boolean(env[name])) ?? fallback;
 }
 
+function readPositiveInteger(env: NodeJS.ProcessEnv, key: string, fallback: number): number {
+  const raw = env[key];
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
 export function loadPlatformRuntimeConfig(env: NodeJS.ProcessEnv = process.env): PlatformRuntimeConfig {
   loadDotEnvIntoProcessEnv(env);
   const rightCodesApiKeyEnvVar = "RIGHT_CODES_API_KEY";
@@ -119,6 +136,10 @@ export function loadPlatformRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
         apiKeyEnvVar: aliyunApiKeyEnvVar,
         api: "openai-completions",
       },
+    },
+    taskQueue: {
+      // 控制面默认允许多任务并发执行，避免同步接口因为单条慢任务把后续请求全部堵住。
+      maxConcurrent: readPositiveInteger(env, "PLATFORM_TASK_QUEUE_MAX_CONCURRENT", 4),
     },
     businessApi: {
       expertProfileToken: env.EXPERT_PROFILE_API_TOKEN?.trim() || undefined,

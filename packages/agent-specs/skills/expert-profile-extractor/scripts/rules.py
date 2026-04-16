@@ -110,7 +110,10 @@ GENERIC_NAME_TERMS = (
     "web of science",
     "clarivate",
     "contact",
+    "contact details",
     "staff contacts",
+    "academic staff",
+    "people",
     "faculty",
     "profile",
     "professor",
@@ -124,6 +127,9 @@ GENERIC_NAME_TERMS = (
     "university",
     "institute",
     "homepage",
+    "home",
+    "首页",
+    "中文信息",
 )
 
 
@@ -331,7 +337,7 @@ def extract_all(html: str, base_url: str) -> dict:
     return {
         "email": extract_email(html),
         "phone": extract_phone(html),
-        "avatar_url": extract_avatar(html, base_url),
-        "name": extract_name(html),
-        "country_region": country_from_tld(base_url),
+        "avatar": extract_avatar(html, base_url),
+        "surname": extract_name(html),
+        "country": country_from_tld(base_url),
     }

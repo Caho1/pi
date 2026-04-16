@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import datetime as _dt
 import json
 import os
 import re
@@ -11,7 +10,8 @@ from typing import Any, Optional
 
 import requests
 
-from schema import ALL_FIELDS, ExpertProfile, ProfileMeta, empty_tags
+import response_formatter
+from schema import ExpertProfile
 
 
 USER_AGENT = (
@@ -308,47 +308,35 @@ def extract_profile(
         raise RuntimeError("Web of Science API returned malformed author payload")
 
     merged = {
-        "name": _normalize_name(record),
-        "gender": None,
-        "birth_date": None,
-        "country_region": _normalize_country(record.get("primaryAffiliationLocation")),
-        "institution": _normalize_institution(record),
-        "college_department": _normalize_department(record),
-        "research_areas": _normalize_research_areas(record),
-        "research_directions": _normalize_research_directions(record),
-        "academic_title": None,
-        "admin_title": None,
+        "surname": _normalize_name(record),
+        "sex": 0,
+        "birthday": None,
+        "country": _normalize_country(record.get("primaryAffiliationLocation")),
+        "province": 0,
+        "city": 0,
+        "organization": _normalize_institution(record),
+        "department": _normalize_department(record),
+        # WOS 作者页通常能给 broad categories 和更细 topics。
+        # 这里让 `domain` 优先吃 broad categories，`direction` 吃 topics，
+        # 后面的规范化层会把 broad categories 映射成业务 domain id。
+        "domain": _normalize_research_areas(record),
+        "direction": _normalize_research_directions(record),
+        "professional": None,
+        "position": None,
         "phone": None,
         "email": None,
         "contact": None,
-        "contact_preferred": None,
-        "bio": record.get("summary") if isinstance(record.get("summary"), str) else None,
-        "avatar_url": record.get("photoUrlLarge") if isinstance(record.get("photoUrlLarge"), str) else None,
-        # Web of Science's author API does not expose these — leave empty; the
-        # generic pipeline will populate them when a homepage URL is used instead.
-        "social_positions": [],
-        "journal_resources": [],
+        "content": record.get("summary") if isinstance(record.get("summary"), str) else None,
+        "avatar": record.get("photoUrlLarge") if isinstance(record.get("photoUrlLarge"), str) else None,
+        # Web of Science 的作者 API 不提供这些扩展字段，统一留空。
+        "academic": [],
+        "journal": [],
         "title": [],
-        "tags": empty_tags(),
+        "tags": None,
     }
-
-    def _is_empty(field: str, value) -> bool:
-        if field == "tags":
-            return not isinstance(value, dict) or all(not value.get(k) for k in value)
-        return value in (None, "", [])
-
-    fields_from_api = sorted([field for field in ALL_FIELDS if not _is_empty(field, merged.get(field))])
-    missing = [field for field in ALL_FIELDS if _is_empty(field, merged.get(field))]
-
-    meta = ProfileMeta(
-        source_url=url,
-        extracted_at=_dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
-        fields_from_rule=fields_from_api,
-        fields_from_llm=[],
-        fields_missing=missing,
-    )
-    profile = ExpertProfile(**merged, _meta=meta)
-    return profile.model_dump(by_alias=True)
+    normalized = response_formatter.normalize_profile(merged)
+    profile = ExpertProfile(**normalized)
+    return {"status": 200, "data": profile.model_dump()}
 
 
 def _cli() -> int:
@@ -367,7 +355,7 @@ def _cli() -> int:
         if result is None:
             raise RuntimeError("source is not a supported Web of Science author record URL")
     except Exception as error:
-        print(json.dumps({"_error": str(error), "_meta": {"source_url": args.source}}, ensure_ascii=False, indent=2))
+        print(json.dumps({"status": 500, "data": None, "error": str(error)}, ensure_ascii=False, indent=2))
         return 1
 
     print(json.dumps(result, ensure_ascii=False, indent=2))

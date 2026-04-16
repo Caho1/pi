@@ -95,8 +95,8 @@ def _model() -> str:
         "DASHSCOPE_MODEL",
         "DASHSCOPE_MODEL_ID",
         "RIGHT_CODES_MODEL_ID",
-        default="glm-5",
-    ) or "glm-5"
+        default="qwen3.6-plus",
+    ) or "qwen3.6-plus"
 
 
 def _completion_options(model: str) -> dict:

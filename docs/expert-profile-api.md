@@ -128,7 +128,7 @@ Content-Type: application/json
 | 5 | 国家地区 | `country` | `{ value: number \| null, name: string } \| null` | 国家字典对象 |
 | 6 | 单位 | `organization` | string \| null | 当前主要任职单位 |
 | 7 | 学院/部门 | `department` | string \| null | 可能是「学院 / 系」拼接 |
-| 8 | 研究领域 | `domain` | `{ value: number \| null, name: string }[]` | 研究领域数组 |
+| 8 | 研究领域 | `domain` | `{ value: number \| null, name: string }[]` | 研究领域数组 | 位运算
 | 9 | 研究方向 | `direction` | string[] | 研究方向数组 |
 | 10 | 职称 | `professional` | `{ value: number \| null, name: string } \| null` | 职称字典对象 |
 | 11 | 职务 | `position` | string \| null | 主职务文本 |
@@ -138,7 +138,7 @@ Content-Type: application/json
 | 15 | 简介 | `bio` | string \| null | 中文简介 |
 | 16 | 社会兼职 | `academic` | string[] | 学会 / 协会 / 委员会兼职 |
 | 17 | 期刊资源 | `journal` | string[] | 编委 / 审稿人 / 主编等 |
-| 18 | 头衔 | `title` | `{ value: number \| null, name: string }[]` | 头衔数组，如院士、IEEE Fellow |
+| 18 | 头衔 | `title` | `{ value: number \| null, name: string }[]` | 头衔数组，如院士、IEEE Fellow | 位运算
 | 19 | 标签-基本信息 | `tags` | object | 见下方固定结构 |
 
 `country` / `professional` / `domain` / `title` 这几类字段会统一返回字典标签对象：
