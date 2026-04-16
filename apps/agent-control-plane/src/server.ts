@@ -286,6 +286,12 @@ export async function buildControlPlaneApp(options?: {
     if (body.timeoutMs !== undefined && (!Number.isFinite(body.timeoutMs) || body.timeoutMs <= 0)) {
       throw new Error("Field 'timeoutMs' must be a positive number");
     }
+
+    for (const field of ["requestId", "tenantId", "approvalToken", "sourceSystem"] as const) {
+      if (body[field] !== undefined && typeof body[field] !== "string") {
+        throw new Error(`Field '${field}' must be a string`);
+      }
+    }
   }
 
   // 这层薄包装把平台协议细节藏在控制面内部：上游业务系统只传 URL，

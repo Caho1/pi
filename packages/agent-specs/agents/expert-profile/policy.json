@@ -2,7 +2,7 @@
   "agentType": "expert-profile",
   "version": "1.0.0",
   "displayName": "Expert Profile Extractor",
-  "description": "Extracts structured expert profiles from faculty/researcher homepages using a rule-layer + LLM pipeline. Output is shaped to feed the 专家主页同步 popup, including social_positions, journal_resources, title, contact, and an enum-constrained tags object.",
+  "description": "Extracts structured expert profiles from faculty/researcher homepages using a rule-layer + LLM pipeline. Output uses the new compact schema: integer enum IDs for sex/country/domain/professional/title, comma-separated tag IDs, and direct field names matching the business API.",
   "skillRefs": [
     "/Users/jiahao/Desktop/PythonProject/pi/packages/agent-specs/skills/expert-profile-extractor/SKILL.md"
   ],
@@ -44,83 +44,33 @@
     "schema": {
       "type": "object",
       "required": [
-        "name", "gender", "birth_date", "country_region", "institution",
-        "college_department", "research_areas", "research_directions",
-        "academic_title", "admin_title", "phone", "email",
-        "contact", "contact_preferred", "bio", "avatar_url",
-        "social_positions", "journal_resources", "title", "tags", "_meta"
+        "avatar", "surname", "sex", "birthday", "country", "province", "city",
+        "organization", "department", "domain", "direction", "professional",
+        "position", "phone", "email", "contact", "content", "academic", "journal",
+        "title", "tags"
       ],
       "properties": {
-        "name": { "type": ["string", "null"] },
-        "gender": { "type": ["string", "null"], "enum": ["male", "female", null] },
-        "birth_date": { "type": ["string", "null"] },
-        "country_region": { "type": ["string", "null"] },
-        "institution": { "type": ["string", "null"] },
-        "college_department": { "type": ["string", "null"] },
-        "research_areas": { "type": "array", "items": { "type": "string" } },
-        "research_directions": { "type": "array", "items": { "type": "string" } },
-        "academic_title": { "type": ["string", "null"] },
-        "admin_title": { "type": ["string", "null"] },
-        "phone": { "type": ["string", "null"] },
-        "email": { "type": ["string", "null"] },
-        "contact": { "type": ["string", "null"] },
-        "contact_preferred": { "type": ["string", "null"], "enum": ["email", "phone", "other", null] },
-        "bio": { "type": ["string", "null"] },
-        "avatar_url": { "type": ["string", "null"] },
-        "social_positions": { "type": "array", "items": { "type": "string" } },
-        "journal_resources": { "type": "array", "items": { "type": "string" } },
-        "title": { "type": "array", "items": { "type": "string" } },
-        "tags": {
-          "type": "object",
-          "required": ["academic_honors", "institution_tier", "experiences", "others"],
-          "properties": {
-            "academic_honors": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "enum": ["院士头衔", "校级", "处级", "科协会领导", "学科带头人"]
-              }
-            },
-            "institution_tier": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "enum": [
-                  "QS Top 50", "QS Top 100", "QS Top 200", "QS Top 500", "QS Top 1000",
-                  "985", "211", "双一流", "其它"
-                ]
-              }
-            },
-            "experiences": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "enum": ["海归", "有过博士后经历", "参与学术社团", "曾担任学术职务"]
-              }
-            },
-            "others": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "enum": [
-                  "顶尖学术奖项", "导师职务", "深度培训经历", "一般培训经历",
-                  "兼办", "外联", "院校"
-                ]
-              }
-            }
-          }
-        },
-        "_meta": {
-          "type": "object",
-          "required": ["source_url", "extracted_at"],
-          "properties": {
-            "source_url": { "type": "string" },
-            "extracted_at": { "type": "string" },
-            "fields_from_rule": { "type": "array", "items": { "type": "string" } },
-            "fields_from_llm": { "type": "array", "items": { "type": "string" } },
-            "fields_missing": { "type": "array", "items": { "type": "string" } }
-          }
-        }
+        "avatar":        { "type": ["string", "null"] },
+        "surname":       { "type": ["string", "null"] },
+        "sex":           { "type": "integer", "enum": [0, 1, 2] },
+        "birthday":      { "type": ["string", "null"] },
+        "country":       { "type": "integer" },
+        "province":      { "type": "integer" },
+        "city":          { "type": "integer" },
+        "organization":  { "type": ["string", "null"] },
+        "department":    { "type": ["string", "null"] },
+        "domain":        { "type": "integer" },
+        "direction":     { "type": ["string", "null"] },
+        "professional":  { "type": "integer" },
+        "position":      { "type": ["string", "null"] },
+        "phone":         { "type": ["string", "null"] },
+        "email":         { "type": ["string", "null"] },
+        "contact":       { "type": ["string", "null"] },
+        "content":       { "type": ["string", "null"] },
+        "academic":      { "type": ["string", "null"] },
+        "journal":       { "type": ["string", "null"] },
+        "title":         { "type": "integer" },
+        "tags":          { "type": ["string", "null"] }
       }
     }
   },
