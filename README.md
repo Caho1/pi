@@ -113,12 +113,12 @@ pnpm install
 
 最少需要提供模型提供方配置。
 
-当前默认调度模型配置为阿里云百炼 `glm-5.1`：
+当前默认调度模型配置为阿里云百炼 `qwen-plus`：
 
 ```bash
 export ALIYUN_BAILIAN_API_KEY='你的密钥'
 export ALIYUN_BAILIAN_BASE_URL='https://dashscope.aliyuncs.com/compatible-mode/v1'
-export ALIYUN_BAILIAN_MODEL_ID='glm-5.1'
+export ALIYUN_BAILIAN_MODEL_ID='qwen-plus'
 export PORT=3000
 ```
 
@@ -203,16 +203,16 @@ curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
 
 ## Expert Profile 接入
 
-`expert-profile` 是当前面向数字化系统接入的业务型 Agent，用来做「传入专家主页 URL，返回 18 个结构化字段」。
+`expert-profile` 是当前面向数字化系统接入的业务型 Agent，用来做「传入专家主页 URL，返回 20+ 个结构化字段」。
 输出形态与数字化系统「专家主页同步」弹窗的勾选项一一对应，业务方拿到后可以直接填充弹窗右栏做左右对比同步。
 
 当前实现状态：
 
-- 外层调度模型使用阿里云百炼 `glm-5.1`，并关闭思考模式
-- 内层专家抽取脚本使用阿里云百炼 `qwen3.6-plus`，启用 `json_object`
+- 外层调度模型使用阿里云百炼 `qwen-plus`，并关闭思考模式
+- 内层专家抽取脚本使用阿里云百炼 `qwen-plus`，启用 `json_object`
 - `Web of Science` 作者页支持专用脚本路径，不走普通 HTML 抓取
 - 同步模式下任务失败会尽快返回，不会一直阻塞等待
-- 输出包含 15 个基础字段 + `social_positions`（社会兼职）/ `journal_resources`（期刊资源）/ `tags`（四分类枚举标签）
+- 输出直接对齐业务新 schema，包含 `countryCode`（国际区号）以及拆分后的 `phone`（手机号）/ `tel`（固定电话）
 
 ### 输入
 
@@ -340,7 +340,7 @@ curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
       "inputTokens": 3500,
       "outputTokens": 420,
       "provider": "aliyun-bailian",
-      "model": "qwen3.6-plus"
+      "model": "qwen-plus"
     }
   }
 }

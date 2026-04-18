@@ -258,7 +258,7 @@ http://192.168.135.172:3000
 
 ### `POST /v1/expert-profiles/extract`
 
-面向数字化系统「专家主页同步」功能的薄包装接口。调用方只传专家主页 URL，平台内部会自动转换成 `expert.profile.extract` 任务并同步等待结果；`data` 里的 18 个字段与「专家主页同步」弹窗右栏的勾选项一一对应。
+面向数字化系统「专家主页同步」功能的薄包装接口。调用方只传专家主页 URL，平台内部会自动转换成 `expert.profile.extract` 任务并同步等待结果；`data` 直接返回业务新 schema，并额外包含 `countryCode`（国际区号）和拆分后的 `tel`（固定电话）。
 
 请求示例：
 
@@ -316,7 +316,7 @@ Authorization: Bearer <token>
 - `promptTokens` / `completionTokens` / `totalTokens`
   从模型执行结果里映射出的输入、输出和总 token 数
 - `data`
-  业务层结构化专家数据，本质上等于通用任务响应里的 `result.structured`。包含 18 个字段：15 个基础字段 + `social_positions`（社会兼职，字符串数组）+ `journal_resources`（期刊资源，字符串数组）+ `tags`（四分类枚举对象）。如果底层结果里出现 `professional` / `domain` / `title` / `country` 或对应业务字段的枚举编码值，业务接口会在返回前自动转成 `{ key, value }` 标签对象；字典外的值会返回 `{ key: null, value: 原始值 }`
+  业务层结构化专家数据，本质上等于通用任务响应里的 `result.structured`。当前返回紧凑新 schema：字典字段统一落成数字 ID，`countryCode` 为国际区号，`phone` 只放手机号，`tel` 只放固定电话，`tags` 为逗号拼接的标签 ID 字符串
 - `tags`
   固定四键对象：`academic_honors` / `institution_tier` / `experiences` / `others`，每个子字段是一个字符串数组，值只会来自业务方预定义的枚举白名单，非法值会被后处理静默丢弃
 - `error`
@@ -687,7 +687,7 @@ curl -X POST http://192.168.135.172:3000/v1/agent-tasks \
   "byProvider": [
     {
       "provider": "aliyun-bailian",
-      "model": "qwen3.6-plus",
+      "model": "qwen-plus",
       "tasks": 12,
       "costUsd": 4.3
     }

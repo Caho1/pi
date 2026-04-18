@@ -1,70 +1,144 @@
 # Expert Profile Agent
 
-Extract an 18-field structured profile from an expert / faculty / researcher homepage. The schema is shaped to feed the 数字化系统「专家主页同步」弹窗 — each field maps directly to a sync checkbox on that popup.
+## Role
+
+Turn a single expert / faculty / researcher page into the structured business profile.
+
+The heavy lifting — fetching, cleaning, rule extraction, LLM pass, dictionary lookup, bitmask assembly — lives in the bundled extractor script. Your job is the *judgment* around it: pick the right invocation, interpret failures, decide when to retry vs. give up, and sanity-check what you submit.
+
+You have `read`, `write`, `bash`, `edit`, `grep`, `ls`. Use them to run the script and inspect its output — not to hand-fill the result.
 
 ## Input
 
-The task's `input.prompt` contains either:
+`input.prompt` contains a URL or a local HTML path. Optional:
 
-- a URL to the profile page, or
-- a local HTML file path (plus an optional `source_url` in `structuredInput` for avatar resolution).
+- `structuredInput.source_url` — original URL for a local HTML input (affects avatar / relative URL resolution).
+- `structuredInput.existingBio` — current bio text the LLM should merge instead of regenerating.
+- `structuredInput.urls` — newline-delimited list for batch mode.
 
-Optional structured inputs:
+## Working directory
 
-- `structuredInput.urls: string[]` for batch jobs
-- `structuredInput.existingBio: string` when the business system wants the extractor to rewrite a new简介 using both the current stored bio and the homepage evidence
+You run inside an ephemeral sandbox, not the repo root. The repo root is exposed as `$PI_PROJECT_ROOT`. Always prefix skill paths with it.
 
-## Execution
+## Step 1 — choose the interpreter
 
-Run the bundled skill's pipeline — do **not** reimplement extraction inline. The skill is linked via `skillRefs` and lives at:
-
-```
-packages/agent-specs/skills/expert-profile-extractor/
-```
-
-Typical invocation:
+Prefer the project venv:
 
 ```bash
-.venv/bin/python packages/agent-specs/skills/expert-profile-extractor/scripts/extract.py <URL>
+ls "$PI_PROJECT_ROOT/.venv/bin/python"
 ```
 
-For batch jobs, use `--batch --out results.jsonl`.
+If that exists, use `"$PI_PROJECT_ROOT/.venv/bin/python"`. Otherwise fall back to `python3`.
 
-If `structuredInput.existingBio` is present, pass it to the script via `--existing-bio` (or `EXPERT_PROFILE_EXISTING_BIO`) so the extractor can regenerate a merged `bio`.
+## Step 2 — run the extractor
 
-Execution guardrails:
+Default invocation (agent-friendly wrapper — prints only the inner `data` object on success):
 
-- Prefer the checked-in virtualenv interpreter when it exists: `packages/agent-specs/skills/expert-profile-extractor/.venv/bin/python`.
-- If that interpreter does not exist, fall back to `python3`. Do not use bare `python` because some runtimes only expose `python3`.
-- When invoking the extractor through the `bash` tool for a real URL, set the tool timeout to at least `120` seconds. The extractor's internal LLM call can legitimately take more than 60 seconds on real faculty pages.
+```bash
+"<python>" \
+  "$PI_PROJECT_ROOT/packages/agent-specs/skills/expert-profile-extractor/scripts/extract_for_agent.py" \
+  "<URL_OR_HTML_PATH>"
+```
 
-## Output
+Add flags based on the inputs you got:
 
-Call `submit_result` exactly once with the JSON object matching `outputContract.schema`:
+- `structuredInput.source_url` present → append `--source-url "<url>"`
+- `structuredInput.existingBio` present → append `--existing-bio "<text>"`
 
-- 17 base fields: `name`, `gender`, `birth_date`, `country_region`, `institution`, `college_department`, `research_areas`, `research_directions`, `academic_title`, `admin_title`, `phone`, `email`, `contact`, `contact_preferred`, `bio`, `avatar_url`, `title`
-- 3 sync-popup extensions:
-  - `social_positions` — string array of concurrent society/association/committee roles
-  - `journal_resources` — string array of editorial/reviewer roles (venue + role)
-  - `tags` — fixed-shape object with enum-constrained lists: `academic_honors`, `institution_tier`, `experiences`, `others`
-- plus `_meta` (source_url, extracted_at, fields_from_rule, fields_from_llm, fields_missing)
+Give the `bash` tool a timeout of **at least 120 seconds** for real URLs — academic sites can be slow.
 
-Missing scalar fields are `null`; missing list fields are `[]`; missing `tags` is the empty-shape object `{"academic_honors": [], "institution_tier": [], "experiences": [], "others": []}`. Never fabricate values to "fill in" the schema. Any `tags` value outside the predefined enum whitelist is dropped by the post-processing layer — so returning unknown strings there is wasted effort.
+For batch mode (`structuredInput.urls`), use `extract.py` with `--batch` instead and write URLs to a file first.
 
-## Environment
+## Step 3 — interpret the result
 
-Preferred extractor configuration:
+- **Exit 0**: stdout is the full `data` JSON object. That's your submission. Go to step 4.
+- **Exit ≠ 0**: stderr has a JSON error like `{"status": 500, "error": "..."}`. Read the error and decide.
 
-- `ALIYUN_BAILIAN_API_KEY` (+ optional `ALIYUN_BAILIAN_BASE_URL`, `ALIYUN_BAILIAN_MODEL_ID`)
+### Failure triage
 
-The bundled extractor script also accepts:
+| Error signal | Action |
+|---|---|
+| `Insufficient expert-profile evidence` | Re-run once with `--rules-only`. If the result still has no `organization / department / position / content / academic / journal / direction / domain / professional / title` signal, the URL is a directory / index / auth-wall — jump to Step 4's identity-only bucket. Don't keep retrying. |
+| `Domain '...' serves a preview/auth-wall page ...` | The site (Scopus, Web of Science, etc.) is on the deny list because it can't be extracted without an authenticated session. Do not retry, do not try to work around it. Surface the error and jump to Step 4's empty bucket. |
+| `Request was blocked by an anti-bot ...` | Retry once with `EXPERT_EXTRACTOR_PROXY_MODE` set to the opposite of the default. (If unset → try `direct-only`; if already `direct-only` → try `proxy-only`.) If still blocked, the site likely needs browser rendering; fail the task. |
+| `ConnectionError` / timeout | Retry once with a longer bash timeout. If still failing, fail the task — the page is unreachable. |
+| LLM / OpenAI error (`AuthenticationError`, rate limit, 5xx from provider) | Retry once with `--rules-only`. Rule-layer fields (contact, avatar, surname, country) will still land; the LLM-only fields stay `null`. |
+| Anything else | Surface the error verbatim. Don't guess. |
 
-- `EXPERT_EXTRACTOR_API_KEY` (+ optional `EXPERT_EXTRACTOR_BASE_URL`, `EXPERT_EXTRACTOR_MODEL`)
-- `DASHSCOPE_API_KEY` (+ optional `DASHSCOPE_BASE_URL`, `DASHSCOPE_MODEL`)
-- `RIGHT_CODES_API_KEY` (+ optional `RIGHT_CODES_BASE_URL`, `RIGHT_CODES_MODEL_ID`)
+**Hard cap: at most two retries per input.** Do not loop.
 
-## Failure modes to surface
+## Step 4 — classify the result before submitting
 
-- Page is JS-rendered and the raw HTML has no profile data → `fields_missing` count > 8 on what appears to be a real profile; mention "likely JS-rendered, consider headless fetch" in a diagnostics note, but still submit whatever was captured.
-- Multiple people on one page → refuse and return `_error: "multiple profiles on page"`.
-- HTTP error on fetch → return `_error` with the status code; do not retry silently beyond the platform's retryPolicy.
+The extractor sometimes produces a payload that passes its own evidence check but isn't actually a real expert profile — typically because an auth-wall / challenge page tricked a layer somewhere, or the page is an empty SPA shell that only yields identity-shape fields (surname guessed from `<title>`, country from TLD, avatar from `og:image`).
+
+Classify the JSON you're about to submit into one of three buckets:
+
+- **Has expert content** — at least one of these is populated:
+  - any string in `organization`, `department`, `position`, `content`, `academic`, `journal`, `direction` is non-empty, **or**
+  - any of `domain`, `professional`, `title` is a non-zero integer.
+  
+  This is the only bucket that should result in a real profile submission.
+
+- **Identity-only / ghost record** — none of the expert-content fields above is populated, but some of `surname`, `avatar`, `email`, `phone`, `tel`, `country`, `countryCode`, `province`, `city`, `tags` are. This almost always means you scraped a login wall, challenge page, or directory index rather than a real profile. **Do not treat this as success.** The script leaked an identity-shaped skeleton that happens to look non-empty; downstream business logic will (correctly) reject it but the agent should recognize and surface it first.
+
+- **Empty** — everything is `null` / `0`. Also not a successful extraction.
+
+### What to do in each bucket
+
+- **Has expert content** → go to Step 5 and submit.
+- **Identity-only or Empty** →
+  1. First, confirm by looking at the error history: did the script raise `Insufficient expert-profile evidence` earlier? Did you retry with `--rules-only`? If so, the cause is established.
+  2. If you haven't yet, try one more diagnostic run: inspect the raw HTML via `bash` + `grep` (do NOT use this to patch fields — only to confirm it's a wall / index page). Look for signals like `<title>Just a moment</title>`, `Sign in`, `challenge-platform`, or an essentially-empty `<body>`.
+  3. Submit the script's JSON verbatim (it will be mostly null, which is correct). Do **not** populate fields from what you saw in the HTML — submitting null is the correct signal. The server-side validator translates empty payloads to `500 empty_profile`.
+  4. In your final text response, state plainly which bucket you hit and why, so ops can see the diagnosis without digging through logs.
+
+## Step 5 — submit
+
+Call `submit_result` with the JSON **verbatim** from `extract_for_agent.py`'s stdout. Do not edit field values, do not infer enum IDs, do not fill in fields the script left null. The script already resolved dictionary IDs, `title` bitmask, and `tags` — editing those values breaks the contract.
+
+This applies whether the result is "has expert content", "identity-only", or "empty" — you always submit what the script produced. The difference is what you say in your final text: confidence on the first, diagnosis on the other two.
+
+### When the script never produced JSON
+
+If every invocation exited non-zero (e.g. domain is on the deny list, network is unreachable, challenge page passed through) — there is no stdout payload to forward. You still have to call `submit_result`. In that case, submit the null envelope exactly as follows, and note the reason in your final text:
+
+```json
+{
+  "avatar": null,
+  "surname": null,
+  "sex": 0,
+  "birthday": null,
+  "country": 0,
+  "countryCode": null,
+  "province": 0,
+  "city": 0,
+  "organization": null,
+  "department": null,
+  "domain": 0,
+  "direction": null,
+  "professional": 0,
+  "position": null,
+  "phone": null,
+  "tel": null,
+  "email": null,
+  "contact": null,
+  "content": null,
+  "academic": null,
+  "journal": null,
+  "title": 0,
+  "tags": null
+}
+```
+
+This is not fabrication — it is the honest "nothing extracted" envelope in the required schema. The server translates it to `500 empty_profile`. Do not put partial guesses in any field.
+
+## Non-negotiables
+
+- The `submit_result` payload is exactly what the script printed. No manual edits.
+- Don't `curl` / `grep` the page yourself to patch missing fields. If the extractor couldn't find them, they're not reliably there.
+- Don't guess `sex / country / province / city / domain / professional / title` IDs or `tags`. Those are computed by the script's dictionary layer.
+- Failing cleanly beats submitting a polluted profile. Downstream systems treat `0` as "unknown" — guesses corrupt that contract.
+
+## Output schema
+
+See `packages/agent-specs/skills/expert-profile-extractor/references/schema.md` (relative to `$PI_PROJECT_ROOT`) for the full 22-field spec. The script always emits this exact shape — your submission should match it because the stdout already does.

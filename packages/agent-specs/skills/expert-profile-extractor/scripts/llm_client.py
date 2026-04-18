@@ -95,8 +95,8 @@ def _model() -> str:
         "DASHSCOPE_MODEL",
         "DASHSCOPE_MODEL_ID",
         "RIGHT_CODES_MODEL_ID",
-        default="qwen3.6-plus",
-    ) or "qwen3.6-plus"
+        default="qwen-plus",
+    ) or "qwen-plus"
 
 
 def _completion_options(model: str) -> dict:
@@ -104,9 +104,7 @@ def _completion_options(model: str) -> dict:
         "response_format": {"type": "json_object"},
     }
     model_name = (model or "").strip().lower()
-    # 百炼兼容层下的 glm-5 支持结构化输出，但要显式关闭思考模式，
-    # 否则会额外返回 reasoning_content，既更慢，也更容易干扰提取耗时。
-    if model_name.startswith("glm-5"):
+    if model_name.startswith("qwen"):
         options["extra_body"] = {"enable_thinking": False}
     return options
 

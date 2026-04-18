@@ -15,11 +15,9 @@ import requests
 # Allow running as a script
 sys.path.insert(0, str(Path(__file__).parent))
 
-import html_cleaner
 import html_cleaner_opencli
 import response_formatter
 import rules
-import webofscience
 from schema import (
     LIST_FIELDS,
     LLM_FIELDS,
@@ -43,13 +41,30 @@ PROXY_ENV_KEYS = (
     "no_proxy",
 )
 FALLBACK_STATUS_CODES = {403, 407, 408, 409, 429, 500, 502, 503, 504}
+# Sites that serve a preview / auth-wall page to anonymous requests.
+# We can't reliably extract a profile from them without an authenticated session,
+# and trying produces ghost records (surname="Email address", avatar="warning.gif",
+# LLM-hallucinated content). Fail fast with a clear reason instead.
+UNSUPPORTED_DOMAINS = (
+    "scopus.com",
+    "webofscience.com",
+)
 BLOCK_PAGE_MARKERS = (
+    # Cloudflare / Akamai challenge wordings
     "pardon our interruption",
     "just a moment",
+    "attention required",
+    "checking your browser",
+    "verifying you are human",
     "enable javascript and cookies",
     "cf-mitigated",
+    "challenge-platform",
+    "_cf_chl_opt",
+    # Generic challenges
     "captcha",
     "security challenge",
+    # Auth walls that return profile-shaped shells to anonymous visitors
+    "scopus preview",
 )
 
 
@@ -173,9 +188,21 @@ def _fetch_url(url: str) -> requests.Response:
     raise RuntimeError(f"Failed to fetch '{url}' with any configured proxy route")
 
 
+def _check_unsupported_domain(url: str) -> None:
+    hostname = (urlparse(url).hostname or "").lower().strip(".")
+    for denied in UNSUPPORTED_DOMAINS:
+        if hostname == denied or hostname.endswith(f".{denied}"):
+            raise RuntimeError(
+                f"Domain '{denied}' serves a preview/auth-wall page to anonymous "
+                f"requests; profile extraction requires an authenticated session "
+                f"or browser rendering and is not supported here."
+            )
+
+
 def fetch(url_or_path: str, source_url_override: Optional[str] = None) -> tuple[str, str]:
     """Return (html, final_url)."""
     if _is_url(url_or_path):
+        _check_unsupported_domain(url_or_path)
         r = _fetch_url(url_or_path)
         # requests guesses; for CJK pages apparent_encoding is more accurate
         if r.encoding and r.encoding.lower() == "iso-8859-1":
@@ -213,17 +240,67 @@ def _merge_known_fields(rule_fields: dict, prefill_fields: dict) -> dict:
     return merged
 
 
-def _pick_cleaned_text(html: str) -> str:
-    """优先使用 OpenCLI 风格 cleaner，文本过短时再回退到旧 cleaner。"""
+def _looks_like_profile_url(source_url: str) -> bool:
+    """根据 URL 路径判断它是否像“人物详情页”而不是门户首页。"""
 
-    opencli_text = html_cleaner_opencli.clean(html)
-    legacy_text = html_cleaner.clean(html)
+    path = (urlparse(source_url).path or "").lower()
+    profile_keywords = (
+        "profile",
+        "profiles",
+        "faculty",
+        "people",
+        "person",
+        "staff",
+        "scholar",
+        "researcher",
+        "expert",
+        "teacher",
+        "member",
+    )
+    return any(keyword in path for keyword in profile_keywords)
 
-    if len(opencli_text.strip()) >= 200:
-        return opencli_text
-    if len(legacy_text.strip()) > len(opencli_text.strip()):
-        return legacy_text
-    return opencli_text or legacy_text
+
+def _has_expert_profile_evidence(profile: dict, source_url: str) -> bool:
+    """判断抽取结果是否具备“专家主页”的最小证据。
+
+    这一步不是做字段合法性校验，而是拦截明显不该进入成功分支的页面：
+    - `surname / avatar / phone / tel` 很容易被导航、广告位、静态素材误伤；
+    - 因此只有联系人信号还不够，还需要看到至少一部分专家语义字段；
+    - 对于 `/profile`、`/faculty` 这类明显是人物详情页的 URL，允许放宽到
+      “两个及以上身份/联系方式信号”，兼容只展示联系方式的极简教师主页。
+    """
+
+    identity_fields = ("surname", "avatar", "email", "phone", "tel")
+    expert_fields = (
+        "organization",
+        "department",
+        "position",
+        "content",
+        "academic",
+        "journal",
+        "direction",
+        "professional",
+        "domain",
+        "title",
+    )
+    identity_count = sum(1 for field in identity_fields if not _is_empty(field, profile.get(field)))
+    expert_count = sum(1 for field in expert_fields if not _is_empty(field, profile.get(field)))
+
+    if expert_count >= 2:
+        return True
+    if expert_count >= 1 and identity_count >= 1:
+        return True
+    if _looks_like_profile_url(source_url) and identity_count >= 2:
+        return True
+    return False
+
+
+def _validate_expert_profile_evidence(profile: dict, source_url: str) -> None:
+    """在最终出参前做最小证据校验，避免把通用站点误当成专家主页。"""
+
+    if _has_expert_profile_evidence(profile, source_url):
+        return
+    raise ValueError(f"Insufficient expert-profile evidence extracted from '{source_url}'")
 
 
 def _merge(rule_fields: dict, llm_fields: dict, prefill_fields: dict) -> tuple[dict, list, list]:
@@ -255,7 +332,7 @@ def _merge(rule_fields: dict, llm_fields: dict, prefill_fields: dict) -> tuple[d
             merged[f] = _default_value(f)
 
     # Rule-only fields
-    for f in ("email", "phone", "avatar"):
+    for f in ("email", "phone", "tel", "avatar"):
         v = rule_fields.get(f)
         if _is_empty(f, v):
             v = prefill_fields.get(f)
@@ -273,11 +350,6 @@ def extract_profile(
     rules_only: bool = False,
     existing_bio: Optional[str] = None,
 ) -> dict:
-    if _is_url(url_or_path):
-        wos_profile = webofscience.extract_profile(url_or_path)
-        if wos_profile is not None:
-            return wos_profile
-
     html, final_url = fetch(url_or_path, source_url_override)
 
     rule_fields = rules.extract_all(html, final_url)
@@ -288,7 +360,7 @@ def extract_profile(
         llm_fields: dict = {}
     else:
         import llm_client  # imported lazily so --rules-only doesn't need openai pkg
-        cleaned = _pick_cleaned_text(html)
+        cleaned = html_cleaner_opencli.clean(html)
         llm_fields = llm_client.call_llm(
             cleaned,
             known_fields,
@@ -298,6 +370,7 @@ def extract_profile(
 
     merged, _, _ = _merge(rule_fields, llm_fields, prefill_fields)
     normalized = response_formatter.normalize_profile(merged)
+    _validate_expert_profile_evidence(normalized, final_url)
     profile = ExpertProfile(**normalized)
     return {"status": 200, "data": profile.model_dump()}
 

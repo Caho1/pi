@@ -43,6 +43,7 @@ DICTIONARIES: dict[str, str] = {
     "domains": "domains.csv",
     "countries": "countries.csv",
     "title_flags": "title_flags.csv",
+    "tags": "tags.csv",
 }
 
 DEFAULT_THRESHOLD = 0.7

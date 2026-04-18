@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { resolveOpenAICompatibleCompat } from "../apps/agent-worker/src/index.js";
 
 describe("aliyun bailian compat", () => {
-  test("uses system-role compatible chat completions settings for glm-5 series", () => {
+  test("uses system-role compatible chat completions settings for aliyun bailian", () => {
     expect(resolveOpenAICompatibleCompat("aliyun-bailian")).toEqual({
       supportsDeveloperRole: false,
       supportsReasoningEffort: true,

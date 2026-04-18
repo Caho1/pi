@@ -870,7 +870,7 @@ export function resolveOpenAICompatibleCompat(providerName: string):
   | undefined {
   if (providerName === "aliyun-bailian") {
     return {
-      // DashScope 的 glm-5 系列不接受非标准的 `developer` 角色，这里强制退回 `system`。
+      // DashScope 兼容层不接受非标准的 `developer` 角色，这里强制退回 `system`。
       supportsDeveloperRole: false,
       supportsReasoningEffort: true,
       maxTokensField: "max_completion_tokens",
@@ -1437,6 +1437,15 @@ type BuiltInTool =
   | ReturnType<typeof createGrepTool>
   | ReturnType<typeof createFindTool>
   | ReturnType<typeof createLsTool>;
+
+// agent.md 用 $PI_PROJECT_ROOT 来引用仓库根下的 skill 脚本。
+// bash 工具会把当前 process.env 原样透给子进程，所以只要在 worker 模块加载时
+// 确保这个变量存在，agent 在沙箱 workspace 里执行脚本就能正确定位。
+// 注意：SDK 的 `tools` 选项只取 name 作为激活名单，用户传入的 tool 实例会被丢弃，
+// 因此不能通过 createBashTool(cwd, {spawnHook}) 注入 env，只能走 process.env。
+if (!process.env.PI_PROJECT_ROOT) {
+  process.env.PI_PROJECT_ROOT = process.cwd();
+}
 
 function buildBuiltInTools(cwd: string, enabledTools: string[]): BuiltInTool[] {
   const toolMap: Record<string, BuiltInTool> = {

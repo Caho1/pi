@@ -1,119 +1,80 @@
 ---
 name: expert-profile-extractor
-description: Extract structured expert/faculty profile data from scholar homepages, faculty staff pages, researcher profile URLs, or HTML files. Produces the business API shape directly: avatar, surname, sex, birthday, country, province, city, organization, department, domain, direction, professional, position, phone, email, contact, content, academic, journal, title, tags.
+description: Extract a structured expert/faculty profile from a scholar homepage, faculty staff page, or local HTML file into the business API shape. Use whenever the user pastes a researcher/professor/expert profile URL, asks to parse a faculty page, or wants to turn a scholar homepage into structured JSON with fields like organization, department, domain, title, and contact info.
 ---
 
 # Expert Profile Extractor
 
-把专家主页、教师主页、研究人员目录页抽成**业务接口最终字段**。  
-当前 skill 已经不再输出旧的 `name / institution / research_areas` 那套中间结构，而是直接对齐新的 extract API 字段名。
+Turn a single expert / faculty / researcher homepage into the business API shape via a deterministic pipeline. You (the agent) are responsible for invoking the script, reading its output, and deciding what to do on failure — the script does the extraction and schema conversion, you do the judgment.
 
-## 适用场景
+## Command
 
-适用于这类请求：
-
-- “把这个专家主页抽成 JSON”
-- “解析这个教授页面”
-- “抓取这批老师主页的结构化信息”
-- “从这个 URL 提取专家资料”
-
-## 输出结构
-
-返回结构固定为：
-
-```json
-{
-  "status": 200,
-  "data": {
-    "avatar": "string | null",
-    "surname": "string | null",
-    "sex": "0 | 1 | 2",
-    "birthday": "YYYY-MM-DD | null",
-    "country": "int",
-    "province": "int",
-    "city": "int",
-    "organization": "string | null",
-    "department": "string | null",
-    "domain": "int",
-    "direction": "string | null",
-    "professional": "int",
-    "position": "string | null",
-    "phone": "string | null",
-    "email": "string | null",
-    "contact": "string | null",
-    "content": "string | null",
-    "academic": "string | null",
-    "journal": "string | null",
-    "title": "int",
-    "tags": "comma-separated ids | null"
-  }
-}
-```
-
-说明：
-
-- `sex`: `0=未知`，`1=男`，`2=女`
-- `country / domain / professional`: 字典 ID
-- `title`: 位运算值
-- `tags`: 逗号拼接的标签 ID
-- `contact`: 只保留 phone / email 之外的其他联系方式
-
-## 使用方式
+Always run from the repo root. Prefer the agent wrapper, which prints **only** the final `data` object (no `{status, data}` envelope) on success and writes errors to stderr:
 
 ```bash
-.venv/bin/python scripts/extract.py <URL_OR_HTML_PATH> [--out <output.json>]
+.venv/bin/python packages/agent-specs/skills/expert-profile-extractor/scripts/extract_for_agent.py \
+  <URL_OR_HTML_PATH>
 ```
 
-示例：
+Use the underlying entry point when you need the full envelope, batch mode, or an `--out` file:
 
 ```bash
-# 在线页面
-.venv/bin/python scripts/extract.py https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
-
-# 本地 HTML
-.venv/bin/python scripts/extract.py tests/fixtures/usst_yangjiantao.html \
-  --source-url https://jiankang.usst.edu.cn/2021/0611/c13509a248959/page.htm
-
-# 批量
-.venv/bin/python scripts/extract.py urls.txt --batch --out results.jsonl
+.venv/bin/python packages/agent-specs/skills/expert-profile-extractor/scripts/extract.py \
+  <URL_OR_HTML_PATH> [--out <output.json>] [--batch]
 ```
 
-## 抽取流程
+Fall back to `python3` if `.venv` doesn't exist.
 
-当前链路分为四层：
+## Options
 
-1. `fetch`
-   - 抓网页，支持代理/直连回退。
-2. `rules.py`
-   - 负责高置信度字段：`email`、`phone`、`avatar`、`surname`、`country`
-3. `html_cleaner_opencli.py`
-   - 负责主内容抽取和结构化数据预填
-   - 直接产出新字段名的预填候选，如 `organization`、`department`、`professional`
-4. `llm_client.py + prompt`
-   - 对自由文本字段做翻译、归纳、补全
-   - 也直接使用新字段名
-5. `response_formatter.py`
-   - 不再做旧字段改名
-   - 只负责把宽松值规范成最终接口需要的 ID / 位运算 / 逗号字符串
+| Flag | When to use |
+|---|---|
+| `--source-url <url>` | Input is a local HTML file and you want relative URLs (avatars, links) resolved against an original URL. |
+| `--existing-bio <text>` | You already have a profile bio — the LLM will merge rather than regenerate. |
+| `--rules-only` | Skip the LLM pass. Returns what the rule + prefill layers could find. Use for offline debug or when the LLM provider is down. |
+| `--batch` | Treat `<source>` as a newline-delimited file of URLs. Outputs JSONL. |
 
-## 当前设计原则
+## Environment knobs
 
-- 内部字段名与外部 API 字段名一致，避免多套 schema 并存
-- `phone / email / avatar / surname` 优先信规则层
-- `organization / department / professional / position / content` 由预填层和 LLM 协同补全
-- `country / province / domain / professional / title / tags` 在最后统一做字典映射
-- 页面没有证据时宁可留空，也不猜
+Use these when the default path fails; don't set them eagerly.
 
-## 规则说明
+| Variable | Purpose |
+|---|---|
+| `EXPERT_EXTRACTOR_PROXY_MODE` | `auto` (default) \| `direct-only` \| `proxy-only` \| `direct-first`. Flip this when a site keeps getting blocked or timing out. |
+| `EXPERT_EXTRACTOR_FORCE_DIRECT_DOMAINS` | Comma-separated domains that must go direct. |
+| `EXPERT_EXTRACTOR_FORCE_PROXY_DOMAINS` | Comma-separated domains that must go via proxy. |
+| `EXPERT_EXTRACTOR_API_KEY` / `EXPERT_EXTRACTOR_BASE_URL` / `EXPERT_EXTRACTOR_MODEL` | LLM client config. |
+| `ALIYUN_BAILIAN_API_KEY` / `ALIYUN_BAILIAN_BASE_URL` / `ALIYUN_BAILIAN_MODEL_ID` | Aliyun fallback. |
 
-- `direction` 对应旧逻辑里的 `research_directions`
-- 旧的 `research_areas` 不再直接返回，而是作为 `domain` 的候选证据，并在需要时兜底填到 `direction`
-- `tags` 现在直接对接业务标签字典，不再输出旧版四分类对象
-- `meta` / `contact_preferred` 已移除，不再出现在 extract 接口响应里
+## Reading the result
 
-## 测试
+On success, stdout is a single JSON object matching the business API shape (22 fields). Submit it verbatim — field IDs, bitmasks, and dictionary lookups are already resolved by the script.
 
-快速测试：
+On failure the script exits non-zero and writes JSON like `{"status": 500, "error": "..."}` to stderr. The error message is meaningful — act on it rather than retrying blindly.
+
+## Failure triage
+
+The extractor deliberately fails loudly rather than returning polluted data. Match the error text to a decision:
+
+- **`Insufficient expert-profile evidence`** — the page didn't look like a person detail page. Options, in order: (a) re-run with `--rules-only` to see partial fields; if still empty, the URL is probably a department/index page, surface the failure. (b) If you suspect the content is behind a render, don't guess — fail.
+- **`Request was blocked by an anti-bot or access challenge page`** — flip `EXPERT_EXTRACTOR_PROXY_MODE` to the opposite mode and retry once. If still blocked, the site needs a browser-based tool; fail.
+- **Timeout / `ConnectionError`** — retry once with a larger bash timeout (≥120s for real URLs). Then fail.
+- **LLM/OpenAI error** — retry with `--rules-only`. Non-LLM fields still land, LLM-only fields stay null.
+
+Cap yourself at **two retries total per input**. Do not loop.
+
+## Non-negotiables
+
+- **Never handcraft the JSON.** The final payload must be exactly what the script printed to stdout. Manually filled fields are considered a failed task even if they look right.
+- **Never scrape the page yourself to patch missing fields.** If the script couldn't find them, they're not reliably there. It's better to submit a partially-filled profile than a fabricated one.
+- **Never guess enum IDs.** `sex / country / province / city / domain / professional / title` and `tags` IDs come from the script's dictionary lookup — guessing them silently corrupts downstream data.
+
+## References
+
+- [references/schema.md](references/schema.md) — full 22-field schema, dictionary ID conventions, `title` bitmask, `tags` encoding. Read when you need to understand the shape of the output.
+- [references/architecture.md](references/architecture.md) — fetch → rule → prefill → LLM → merge → normalize pipeline. Read when debugging the script, adding a site-specific adapter, or changing priority rules.
+
+## Testing
 
 ```bash
 python3 -m unittest \
@@ -121,5 +82,3 @@ python3 -m unittest \
   tests/test_html_cleaner_opencli_structured.py \
   tests/test_skill_logic.py
 ```
-
-如果页面是强 JS 渲染或被站点拦截，skill 可能只能返回部分字段；这种情况通常需要浏览器渲染或专项适配。

@@ -121,6 +121,17 @@ class DictSearchTests(unittest.TestCase):
     def test_title_flags_unknown(self):
         self.assertIsNone(dict_search.lookup("title_flags", "某不存在的头衔"))
 
+    # ── tags ─────────────────────────────────────────────────────────
+    def test_tags_exact(self):
+        hit = dict_search.lookup("tags", "导师师资")
+        self.assertEqual(hit["value"], 21)
+        self.assertEqual(hit["name"], "导师师资")
+
+    def test_tags_legacy_alias(self):
+        hit = dict_search.lookup("tags", "导师职务")
+        self.assertEqual(hit["value"], 21)
+        self.assertEqual(hit["name"], "导师师资")
+
     # ── 边界 ─────────────────────────────────────────────────────────
     def test_empty_query_returns_none(self):
         self.assertIsNone(dict_search.lookup("domains", ""))

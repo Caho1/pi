@@ -8,15 +8,23 @@
 """
 from __future__ import annotations
 
+import csv
 import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from contact_numbers import extract_number_candidates, normalize_contact_number
 import dict_search
 
 
 _CSV_SPLIT_RE = re.compile(r"[;,；，、\n]+")
 _PHONE_RE = re.compile(r"\+?\d[\d()\-\s]{6,}\d")
-_EMAIL_RE = re.compile(r"[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+", re.IGNORECASE)
+_EMAIL_RE = re.compile(
+    r"[\w.+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}",
+    re.IGNORECASE,
+)
+_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 _SEX_MAP = {
     "male": 1,
@@ -153,103 +161,25 @@ _CITY_TO_PROVINCE: dict[str, int] = {
     "乌鲁木齐": 31,
 }
 
-_TAG_LABEL_TO_ID: dict[str, int] = {
-    "校级领导": 1,
-    "院所领导": 2,
-    "处级领导": 3,
-    "学协会领导": 4,
-    "学科带头人": 5,
-    "QS Top 200": 6,
-    "QS Top 500": 7,
-    "双一流高校": 8,
-    "985高校": 9,
-    "本科院校": 10,
-    "专科院校": 11,
-    "公办": 12,
-    "民办": 13,
-    "合作办学": 14,
-    "期刊任职": 15,
-    "学术会议组织经验": 16,
-    "学术评审经验": 17,
-    "审修经历": 18,
-    "学术文章原创经验": 19,
-    "顶级学术机构": 20,
-    "导师师资": 21,
-    "深度话题创作": 22,
-    "一般话题创作": 23,
-    "专业曝光": 24,
-    "社交拓展": 25,
-    "知识分享": 26,
-    "期刊审稿": 27,
-    "同行预审": 28,
-    "翻译": 29,
-    "润色": 30,
-    "审修": 31,
-    "降重": 32,
-    "头条创作": 33,
-    "提案": 34,
-    "会议嘉宾": 35,
-    "艾思云课堂": 36,
-    "论文一对一": 37,
-    "论文—对一": 37,
-    "其它": 38,
-    "会议组委审稿": 39,
-    "专家审稿": 40,
-    "校对": 41,
-    "排版": 42,
-    "图表编辑": 43,
-    "合作办会": 44,
-    "经费筹集": 45,
-    "专家推荐": 46,
-    "场地申请": 47,
-    "合作引荐": 48,
-    "宣传组织": 49,
-    "会务筹备": 50,
-    "志愿者组织": 51,
-    "参会推荐": 52,
-    "投稿推荐": 53,
-    "出版配合": 54,
-    "翻译水平高": 55,
-    "润色水平高": 56,
-    "合作意愿强": 57,
-    "配合程度高": 58,
-    "有亲和力": 59,
-    "学术资源丰富": 60,
-    "时间观念强": 61,
-    "任务质量高": 62,
-    "学术水平高": 63,
-    "翻译水平低": 64,
-    "润色水平低": 65,
-    "合作意愿弱": 66,
-    "配合程度低": 67,
-    "不好相处": 68,
-    "学术资源欠缺": 69,
-    "时间观念差": 70,
-    "任务质量低": 71,
-    "学术水平低": 72,
-    "海外院校": 73,
-    "终止合作": 74,
-    "审批文件": 75,
-}
 
-# 兼容旧版四分类 tags，方便迁移期已有测试夹具和 LLM 返回值继续落到新 tags id。
-_LEGACY_TAG_VALUE_TO_IDS: dict[str, list[int]] = {
-    "校级": [1],
-    "处级": [3],
-    "科协会领导": [4],
-    "学科带头人": [5],
-    "QS Top 50": [6],
-    "QS Top 100": [6],
-    "QS Top 200": [6],
-    "QS Top 500": [7],
-    "985": [9],
-    "211": [9],
-    "双一流": [8],
-    "海归": [73],
-    "曾担任学术职务": [16],
-    "导师职务": [21],
-}
+@lru_cache(maxsize=1)
+def _load_country_calling_codes() -> dict[int, int]:
+    """读取国家字典 ID -> 国际区号映射。
 
+    区号表单独放 CSV，是为了让 Python 抽取链路和 TS 控制面共用同一份数据，
+    后续如果业务字典扩国家或者修订区号，也只需要改一处。
+    """
+    mapping: dict[int, int] = {}
+    path = _DATA_DIR / "country_calling_codes.csv"
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            raw_id = (row.get("id") or "").strip()
+            raw_code = (row.get("calling_code") or "").strip()
+            if not raw_id.isdigit() or not raw_code.isdigit():
+                continue
+            mapping[int(raw_id)] = int(raw_code)
+    return mapping
 
 def _to_int(raw: object, *, minimum: int = 0) -> Optional[int]:
     """把宽松输入安全地转成 int。
@@ -341,6 +271,19 @@ def _lookup_id(dictionary: str, raw: object) -> int:
     return 0
 
 
+def _extract_calling_code_from_number(raw: Optional[str]) -> Optional[int]:
+    normalized = normalize_contact_number(raw) if isinstance(raw, str) else None
+    if not normalized or not normalized.startswith("+"):
+        return None
+    digits = re.sub(r"\D", "", normalized)
+    known_codes = {str(code) for code in _load_country_calling_codes().values()}
+    for length in (3, 2, 1):
+        candidate = digits[:length]
+        if candidate in known_codes:
+            return int(candidate)
+    return None
+
+
 def _province_from_text(text: str) -> int:
     for keyword in sorted(_PROVINCE_KEYWORDS, key=len, reverse=True):
         if keyword in text:
@@ -403,6 +346,63 @@ def _join_or_none(raw: object) -> Optional[str]:
     return ",".join(values)
 
 
+def _resolve_phone_slots(phone_raw: object, tel_raw: object, contact_raw: object) -> tuple[Optional[str], Optional[str]]:
+    """把历史 `phone` 值和新增 `tel` 值重新收口成“手机 / 固话”两栏。
+
+    这里故意把旧的 `phone` 输入按“默认更像座机”处理，因为专家主页上最常见的是
+    办公电话。只有命中明显手机号规则或 `mobile/手机` 上下文时，才会继续落到
+    `phone` 字段。
+    """
+    phone: Optional[str] = None
+    tel: Optional[str] = None
+
+    def absorb(raw: object, *, default_kind: Optional[str]) -> None:
+        nonlocal phone, tel
+        for token in _split_tokens(raw):
+            candidates = extract_number_candidates(token, default_kind=default_kind)
+            if not candidates:
+                normalized = normalize_contact_number(token)
+                if not normalized:
+                    continue
+                if default_kind == "landline" and tel is None:
+                    tel = normalized
+                elif default_kind == "mobile" and phone is None:
+                    phone = normalized
+                continue
+            for candidate in candidates:
+                if candidate.kind == "mobile" and phone is None:
+                    phone = candidate.value
+                if candidate.kind == "landline" and tel is None:
+                    tel = candidate.value
+                if phone and tel:
+                    return
+
+    absorb(phone_raw, default_kind="landline")
+    absorb(tel_raw, default_kind="landline")
+    absorb(contact_raw, default_kind=None)
+    return phone, tel
+
+
+def _map_country_calling_code(
+    raw: object,
+    *,
+    country_id: int,
+    phone: Optional[str],
+    tel: Optional[str],
+) -> Optional[int]:
+    explicit = _to_int(raw, minimum=1)
+    if explicit is not None:
+        return explicit
+    mapped = _load_country_calling_codes().get(country_id)
+    if mapped is not None:
+        return mapped
+    for number in (phone, tel):
+        calling_code = _extract_calling_code_from_number(number)
+        if calling_code is not None:
+            return calling_code
+    return None
+
+
 def _strip_main_contacts(raw: object) -> Optional[str]:
     """`contact` 只保留 phone / email 之外的备用联系方式。"""
     values = _deduplicate(_split_tokens(raw))
@@ -441,13 +441,22 @@ def _map_tags(raw: object) -> Optional[str]:
         seen.add(tag_id)
         tag_ids.append(tag_id)
 
+    # tags 的主字典现在统一走 CSV。
+    # 这里仍然拒绝 bigram 模糊命中，避免把“相近标签”误绑成错误 ID。
+    def lookup_tag_id(token: str) -> Optional[int]:
+        result = dict_search.lookup("tags", token, threshold=0.95)
+        if not result:
+            return None
+        if result.get("method") == "bigram":
+            return None
+        value = result.get("value")
+        return value if isinstance(value, int) and value > 0 else None
+
     if isinstance(raw, dict):
         for values in raw.values():
             for token in _split_tokens(values):
-                for tag_id in _LEGACY_TAG_VALUE_TO_IDS.get(token, []):
-                    add_tag(tag_id)
-                mapped = _TAG_LABEL_TO_ID.get(token)
-                if mapped:
+                mapped = lookup_tag_id(token)
+                if mapped is not None:
                     add_tag(mapped)
     else:
         for token in _split_tokens(raw):
@@ -455,8 +464,8 @@ def _map_tags(raw: object) -> Optional[str]:
             if numeric is not None:
                 add_tag(numeric)
                 continue
-            mapped = _TAG_LABEL_TO_ID.get(token)
-            if mapped:
+            mapped = lookup_tag_id(token)
+            if mapped is not None:
                 add_tag(mapped)
 
     if not tag_ids:
@@ -477,13 +486,26 @@ def normalize_profile(profile: dict[str, Any]) -> dict[str, Any]:
     direction = _join_or_none(profile.get("direction"))
     academic = _join_or_none(profile.get("academic"))
     journal = _join_or_none(profile.get("journal"))
+    country_id = _lookup_id("countries", profile.get("country"))
+    phone, tel = _resolve_phone_slots(
+        profile.get("phone"),
+        profile.get("tel"),
+        profile.get("contact"),
+    )
+    country_code = _map_country_calling_code(
+        profile.get("countryCode"),
+        country_id=country_id,
+        phone=phone,
+        tel=tel,
+    )
 
     return {
         "avatar": profile.get("avatar"),
         "surname": profile.get("surname"),
         "sex": _map_sex(profile.get("sex")),
         "birthday": _map_birthday(profile.get("birthday")),
-        "country": _lookup_id("countries", profile.get("country")),
+        "country": country_id,
+        "countryCode": country_code,
         "province": _map_province(
             profile.get("province"),
             organization,
@@ -497,7 +519,8 @@ def normalize_profile(profile: dict[str, Any]) -> dict[str, Any]:
         "direction": direction,
         "professional": _map_professional(profile.get("professional")),
         "position": profile.get("position"),
-        "phone": profile.get("phone"),
+        "phone": phone,
+        "tel": tel,
         "email": profile.get("email"),
         "contact": _strip_main_contacts(profile.get("contact")),
         "content": profile.get("content"),

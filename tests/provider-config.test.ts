@@ -29,7 +29,7 @@ describe("platform runtime config", () => {
 
   test("loads aliyun bailian provider configuration from environment", () => {
     process.env.ALIYUN_BAILIAN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    process.env.ALIYUN_BAILIAN_MODEL_ID = "glm-5.1";
+    process.env.ALIYUN_BAILIAN_MODEL_ID = "qwen-plus";
     process.env.ALIYUN_BAILIAN_API_KEY = "secret-bailian";
     process.env.EXPERT_PROFILE_API_TOKEN = "expert-secret";
 
@@ -37,7 +37,7 @@ describe("platform runtime config", () => {
 
     expect(config.providers.aliyunBailian.enabled).toBe(true);
     expect(config.providers.aliyunBailian.baseUrl).toBe("https://dashscope.aliyuncs.com/compatible-mode/v1");
-    expect(config.providers.aliyunBailian.modelId).toBe("glm-5.1");
+    expect(config.providers.aliyunBailian.modelId).toBe("qwen-plus");
     expect(config.providers.aliyunBailian.api).toBe("openai-completions");
     expect(config.providers.aliyunBailian.apiKeyEnvVar).toBe("ALIYUN_BAILIAN_API_KEY");
     expect(config.businessApi.expertProfileToken).toBe("expert-secret");
@@ -53,7 +53,7 @@ describe("platform runtime config", () => {
         [
           "ALIYUN_BAILIAN_API_KEY=secret-bailian-dotenv",
           "ALIYUN_BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1",
-          "ALIYUN_BAILIAN_MODEL_ID=glm-5.1",
+          "ALIYUN_BAILIAN_MODEL_ID=qwen-plus",
           "EXPERT_PROFILE_API_TOKEN=expert-secret-dotenv",
           "PLATFORM_TASK_QUEUE_MAX_CONCURRENT=5",
           "RIGHT_CODES_API_KEY=secret-from-dotenv",
@@ -78,7 +78,7 @@ describe("platform runtime config", () => {
 
       expect(process.env.ALIYUN_BAILIAN_API_KEY).toBe("secret-bailian-dotenv");
       expect(config.providers.aliyunBailian.enabled).toBe(true);
-      expect(config.providers.aliyunBailian.modelId).toBe("glm-5.1");
+      expect(config.providers.aliyunBailian.modelId).toBe("qwen-plus");
       expect(config.providers.aliyunBailian.api).toBe("openai-completions");
       expect(config.businessApi.expertProfileToken).toBe("expert-secret-dotenv");
       expect(config.taskQueue.maxConcurrent).toBe(5);

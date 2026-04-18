@@ -9,9 +9,9 @@
   "defaultModelPolicy": {
     "preferredRole": "plan",
     "providerAllowlist": ["aliyun-bailian"],
-    "modelAllowlist": ["glm-5.1"],
+    "modelAllowlist": ["qwen-plus"],
     "failoverOrder": [
-      { "provider": "aliyun-bailian", "model": "glm-5.1" }
+      { "provider": "aliyun-bailian", "model": "qwen-plus" }
     ],
     "maxAttemptsPerProvider": 1,
     "thinkingLevel": "high",

@@ -11,9 +11,9 @@
   "defaultModelPolicy": {
     "preferredRole": "default",
     "providerAllowlist": ["aliyun-bailian"],
-    "modelAllowlist": ["glm-5.1"],
+    "modelAllowlist": ["qwen-plus"],
     "failoverOrder": [
-      { "provider": "aliyun-bailian", "model": "glm-5.1" }
+      { "provider": "aliyun-bailian", "model": "qwen-plus" }
     ],
     "maxAttemptsPerProvider": 1,
     "thinkingLevel": "off",
@@ -21,7 +21,7 @@
   },
   "defaultToolPolicy": {
     "mode": "allowlist",
-    "tools": ["read", "bash", "ls"]
+    "tools": ["read", "write", "bash", "edit", "grep", "ls"]
   },
   "defaultWorkspacePolicy": {
     "mode": "ephemeral",
@@ -44,9 +44,9 @@
     "schema": {
       "type": "object",
       "required": [
-        "avatar", "surname", "sex", "birthday", "country", "province", "city",
+        "avatar", "surname", "sex", "birthday", "country", "countryCode", "province", "city",
         "organization", "department", "domain", "direction", "professional",
-        "position", "phone", "email", "contact", "content", "academic", "journal",
+        "position", "phone", "tel", "email", "contact", "content", "academic", "journal",
         "title", "tags"
       ],
       "properties": {
@@ -55,6 +55,7 @@
         "sex":           { "type": "integer", "enum": [0, 1, 2] },
         "birthday":      { "type": ["string", "null"] },
         "country":       { "type": "integer" },
+        "countryCode":   { "type": ["integer", "null"] },
         "province":      { "type": "integer" },
         "city":          { "type": "integer" },
         "organization":  { "type": ["string", "null"] },
@@ -64,6 +65,7 @@
         "professional":  { "type": "integer" },
         "position":      { "type": ["string", "null"] },
         "phone":         { "type": ["string", "null"] },
+        "tel":           { "type": ["string", "null"] },
         "email":         { "type": ["string", "null"] },
         "contact":       { "type": ["string", "null"] },
         "content":       { "type": ["string", "null"] },

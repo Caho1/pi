@@ -1,7 +1,7 @@
 """OpenCLI-style HTML cleaner for expert profile pages.
 
-This module does not replace the current html_cleaner.py pipeline.
-It provides a standalone extractor so we can compare output quality first.
+Single cleaner used by the extraction pipeline: extract main content,
+collect structured prefill candidates, drop navigation/boilerplate.
 """
 from __future__ import annotations
 
@@ -1171,47 +1171,14 @@ def _load_source(source: str) -> tuple[str, str]:
     return html, str(path.resolve())
 
 
-def _build_compare_payload(source: str, html: str, final_url: str) -> dict:
-    import html_cleaner
-
-    legacy_text = html_cleaner.clean(html)
-    opencli_result = extract(html)
-    payload = {
-        "source": source,
-        "resolved_source": final_url,
-        "legacy_length": len(legacy_text),
-        "opencli_length": opencli_result.text_length,
-        "delta_length": opencli_result.text_length - len(legacy_text),
-        "strategy": opencli_result.strategy,
-        "selector_hint": opencli_result.selector_hint,
-        "title": opencli_result.title,
-        "author": opencli_result.author,
-        "publish_time": opencli_result.publish_time,
-        "legacy_preview": legacy_text[:500],
-        "opencli_preview": opencli_result.text[:500],
-    }
-    return payload
-
-
 def _cli(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Standalone OpenCLI-style HTML cleaner.")
     parser.add_argument("source", help="Local HTML path or URL")
     parser.add_argument("--out", help="Write extracted text to a file")
     parser.add_argument("--json", action="store_true", help="Print extraction metadata as JSON")
-    parser.add_argument(
-        "--compare-old",
-        action="store_true",
-        help="Compare legacy html_cleaner.py output with the OpenCLI-style output",
-    )
     args = parser.parse_args(argv)
 
-    html, final_url = _load_source(args.source)
-
-    if args.compare_old:
-        payload = _build_compare_payload(args.source, html, final_url)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
-
+    html, _final_url = _load_source(args.source)
     result = extract(html)
     if args.out:
         Path(args.out).write_text(result.text, encoding="utf-8")

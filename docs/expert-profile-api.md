@@ -69,37 +69,28 @@ Content-Type: application/json
   "totalTokens": 0,
   "data": {
     "avatar": "https://example.edu.cn/faculty/yang.jpg",
-    "name": "杨建涛",
-    "sex": "男",
+    "surname": "杨建涛",
+    "sex": 1,
     "birthday": null,
-    "country": {
-      "value": 1,
-      "name": "中国"
-    },
+    "country": 1,
+    "countryCode": 86,
+    "province": 9,
+    "city": 0,
     "organization": "上海理工大学",
     "department": "健康科学与工程学院",
-    "domain": [
-      { "value": null, "name": "生物力学" },
-      { "value": null, "name": "康复机器人" }
-    ],
-    "direction": ["康复机器人", "可穿戴监测设备"],
-    "professional": {
-      "value": 2,
-      "name": "副教授"
-    },
+    "domain": 8,
+    "direction": "康复机器人,可穿戴监测设备",
+    "professional": 2,
     "position": "硕士研究生指导教师",
-    "phone": "021-55270127",
+    "phone": null,
+    "tel": "021-55270127",
     "email": "jty@usst.edu.cn",
     "contact": null,
-    "bio": "机器人学博士，毕业于上海交通大学（2020），现为上海理工大学健康科学与工程学院康复工程与技术研究所副教授。入选上海理工大学志远计划，主要研究领域包括生物力学、康复机器人、穿戴式传感器技术等。",
-    "academic": ["中国人工智能学会智能机器人专委会委员"],
-    "journal": [],
-    "title": [],
-    "tags": {
-      "position": [],
-      "experience": ["参与学术社团"],
-      "other": ["导师职务"]
-    }
+    "content": "机器人学博士，毕业于上海交通大学（2020），现为上海理工大学健康科学与工程学院康复工程与技术研究所副教授。入选上海理工大学志远计划，主要研究领域包括生物力学、康复机器人、穿戴式传感器技术等。",
+    "academic": "中国人工智能学会智能机器人专委会委员",
+    "journal": null,
+    "title": 0,
+    "tags": "21"
   },
   "error": null
 }
@@ -122,42 +113,28 @@ Content-Type: application/json
 | # | 中文字段 | `data` 字段 | 类型 | 说明 |
 |---|---|---|---|---|
 | 1 | 头像 | `avatar` | string \| null | 头像的图片地址 |
-| 2 | 姓名 | `name` | string \| null | 优先中文名 |
-| 3 | 性别 | `sex` | string \| null | 返回 `男` / `女` / `null` |
+| 2 | 姓名 | `surname` | string \| null | 优先中文名 |
+| 3 | 性别 | `sex` | number | `0=未知 / 1=男 / 2=女` |
 | 4 | 出生年月 | `birthday` | string \| null | 格式 `YYYY` 或 `YYYY-MM` |
-| 5 | 国家地区 | `country` | `{ value: number \| null, name: string } \| null` | 国家字典对象 |
-| 6 | 单位 | `organization` | string \| null | 当前主要任职单位 |
-| 7 | 学院/部门 | `department` | string \| null | 可能是「学院 / 系」拼接 |
-| 8 | 研究领域 | `domain` | `{ value: number \| null, name: string }[]` | 研究领域数组 | 位运算
-| 9 | 研究方向 | `direction` | string[] | 研究方向数组 |
-| 10 | 职称 | `professional` | `{ value: number \| null, name: string } \| null` | 职称字典对象 |
-| 11 | 职务 | `position` | string \| null | 主职务文本 |
-| 12 | 联系电话 | `phone` | string \| null | 主页能抓到才返回 |
-| 13 | 电子邮箱 | `email` | string \| null | 主页能抓到才返回 |
-| 14 | 备用联系方式 | `contact` | string \| null | 微信 / ORCID / Scholar / 办公地点等备选联系方式，没有则为 null |
-| 15 | 简介 | `bio` | string \| null | 中文简介 |
-| 16 | 社会兼职 | `academic` | string[] | 学会 / 协会 / 委员会兼职 |
-| 17 | 期刊资源 | `journal` | string[] | 编委 / 审稿人 / 主编等 |
-| 18 | 头衔 | `title` | `{ value: number \| null, name: string }[]` | 头衔数组，如院士、IEEE Fellow | 位运算
-| 19 | 标签-基本信息 | `tags` | object | 见下方固定结构 |
-
-`country` / `professional` / `domain` / `title` 这几类字段会统一返回字典标签对象：
-
-```json
-{
-  "value": 2,
-  "name": "副教授"
-}
-```
-
-如果命中字典，`value` 是编码；如果没命中字典但有原始值，返回：
-
-```json
-{
-  "value": null,
-  "name": "原始值"
-}
-```
+| 5 | 国家地区 | `country` | number | 国家字典 ID，未知为 `0` |
+| 6 | 国际区号 | `countryCode` | number \| null | 如中国 `86`、美国 `1` |
+| 7 | 省份 | `province` | number | 省份字典 ID，未知为 `0` |
+| 8 | 城市 | `city` | number | 城市字典 ID，未知为 `0` |
+| 9 | 单位 | `organization` | string \| null | 当前主要任职单位 |
+| 10 | 学院/部门 | `department` | string \| null | 可能是「学院 / 系」拼接 |
+| 11 | 研究领域 | `domain` | number | 研究领域字典 ID，未知为 `0` |
+| 12 | 研究方向 | `direction` | string \| null | 逗号分隔字符串 |
+| 13 | 职称 | `professional` | number | 职称字典 ID，未知为 `0` |
+| 14 | 职务 | `position` | string \| null | 主职务文本 |
+| 15 | 手机号 | `phone` | string \| null | 只放手机号 |
+| 16 | 固定电话 | `tel` | string \| null | 只放固定电话/办公电话 |
+| 17 | 电子邮箱 | `email` | string \| null | 主页能抓到才返回 |
+| 18 | 备用联系方式 | `contact` | string \| null | 微信 / ORCID / Scholar / 办公地点等备选联系方式，没有则为 null |
+| 19 | 简介 | `content` | string \| null | 中文简介 |
+| 20 | 社会兼职 | `academic` | string \| null | 学会 / 协会 / 委员会兼职，逗号分隔 |
+| 21 | 期刊资源 | `journal` | string \| null | 编委 / 审稿人 / 主编等，逗号分隔 |
+| 22 | 头衔 | `title` | number | 位运算值 |
+| 23 | 标签-基本信息 | `tags` | string \| null | 逗号分隔标签 ID |
 
 ## 7. `tags` 固定结构
 

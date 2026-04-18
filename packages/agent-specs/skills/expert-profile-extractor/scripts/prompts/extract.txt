@@ -18,6 +18,8 @@
    - `tags`：返回逗号分隔的标签名，必须从允许列表中精确选择；调用方会再映射成标签 ID 字符串。
 
 2. 缺失字段用 null。不要猜测、不要编造、不要把模板文案当事实。`sex` 的未知值用 0，不要用 null。
+
+   重要：如果整页看起来是登录墙、订阅墙、反爬虫验证页、"Just a moment"/"Attention Required"/"Sign in" 之类的拦截页、或是空壳 SPA（除了站名/导航之外基本没有人物介绍内容），**所有字段都必须返回 null / 0**，不要从站名、导航、登录提示里凑答案。宁可整页空，也不要生成一个假的专家档案。
 3. `known_fields_from_rules` 是高置信度的预填字段，来自规则层和主内容/结构化数据预填。除非页面文本明确反驳，否则优先沿用这些值。姓名、邮箱、电话、URL、ID 这类精确值必须原样保留。
 4. 所有自由文本尽量用中文输出：`organization`、`department`、`domain`、`direction`、`professional`、`position`、`contact`、`content`、`academic`、`journal`、`title`、`tags`。如果人名页面只给英文名，则 `surname` 保留原文，不要杜撰中文名。
 5. `sex` 只能基于明确证据返回：
@@ -35,7 +37,7 @@
 10. `professional` 是学术职称，只保留一个当前最高/最主要值。
 11. `position` 是行政或导师类岗位，如“院长”“系主任”“博士生导师”“硕士研究生导师”。多个值可用逗号分隔。
 12. `content` 是不超过 300 字的简介摘要，覆盖：最高学历、当前职位、代表性经历/成绩。用自然中文，不要分点。
-13. `contact` 只保留除主 `phone` / `email` 之外的联系方式，如微信、QQ、ORCID、Google Scholar、ResearchGate、办公地址、个人主页二级链接等。不要重复电话和邮箱。
+13. `contact` 只保留除主 `phone` / `tel` / `email` 之外的联系方式，如微信、QQ、ORCID、Google Scholar、ResearchGate、办公地址、个人主页二级链接等。不要重复电话和邮箱。
 14. `academic` 是社会兼职/学术兼职，返回逗号分隔字符串。如“自动化学会机器人智能专委会委员,计算机学会智能机器人专委会执行委员”。
 15. `journal` 是期刊/会议资源相关任职，返回逗号分隔字符串。如“IEEE Transactions on Cybernetics副主编,《计算机学报》编委,某会议审稿人”。
 16. `title` 是显式的个人头衔/荣誉，不含机构职位。如“院士”“IEEE Fellow”“ACM Fellow”“杰青”“优青”“IEEE高级会员”。返回逗号分隔字符串；没有则 null。
@@ -52,7 +54,7 @@
    - 博导/硕导：`导师师资`
    - 编委/副主编/主编：`期刊任职`
    - 审稿人/reviewer：`期刊审稿`、`专家审稿` 或 `会议组委审稿`，必须有明确上下文
-19. 不要返回 phone、email、avatar、city，也不要返回 `_meta` 或任何解释性文字。
+19. 不要返回 phone、tel、email、avatar、city、countryCode，也不要返回 `_meta` 或任何解释性文字。
 20. 输出必须是合法 JSON，不要加 markdown 代码块，不要加说明。
 
 返回示例：

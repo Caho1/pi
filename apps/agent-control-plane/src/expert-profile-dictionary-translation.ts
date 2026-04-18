@@ -1,15 +1,13 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 type EnumDictionary = Record<number, string>;
 // 业务侧约定的字典标签对象：`value` 是字典编码（命中字典时为数字，未命中为 null），
 // `name` 是展示用的中文标签。保留 unknown 是为了让未命中字典的原始输入值也能照常下发。
 type DictionaryItem = {
   value: number | null;
   name: unknown;
-};
-
-type BusinessTags = {
-  position: string[];
-  experience: string[];
-  other: string[];
 };
 
 const PROFESSIONAL_LABELS: EnumDictionary = {
@@ -290,6 +288,80 @@ const COUNTRY_LABELS: EnumDictionary = {
   212: "科索沃",
 };
 
+function resolveSharedDataFilePath(filename: string): string {
+  const relativePath = `packages/agent-specs/skills/expert-profile-extractor/data/${filename}`;
+  const currentFileDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(process.cwd(), relativePath),
+    resolve(currentFileDir, "../../../", relativePath),
+    resolve(currentFileDir, "../../../../", relativePath),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Unable to locate shared data file '${filename}'. Tried: ${candidates.join(", ")}`);
+}
+
+function loadTagLabelToIdFromCsv(): Record<string, number> {
+  // tags 现在和 Python skill 共用一份 CSV 字典。
+  // 这里把 canonical + aliases 都铺平成 label -> id，保证控制面和 skill
+  // 对标签的解释保持完全一致。
+  const csvPath = resolveSharedDataFilePath("tags.csv");
+  const content = readFileSync(csvPath, "utf8");
+  const lines = content.split(/\r?\n/).slice(1);
+  const mapping: Record<string, number> = {};
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const [idRaw = "", canonicalRaw = "", aliasesRaw = ""] = trimmed.split(",", 3);
+    const tagId = Number(idRaw.trim());
+    const canonical = canonicalRaw.trim();
+    if (!Number.isInteger(tagId) || tagId <= 0 || !canonical) {
+      continue;
+    }
+    mapping[canonical] = tagId;
+    for (const alias of aliasesRaw.split("|")) {
+      const normalized = alias.trim();
+      if (!normalized) {
+        continue;
+      }
+      mapping[normalized] = tagId;
+    }
+  }
+
+  return mapping;
+}
+
+function loadCountryIdToCallingCodeFromCsv(): Record<number, number> {
+  const csvPath = resolveSharedDataFilePath("country_calling_codes.csv");
+  const content = readFileSync(csvPath, "utf8");
+  const lines = content.split(/\r?\n/).slice(1);
+  const mapping: Record<number, number> = {};
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const [idRaw = "", codeRaw = ""] = trimmed.split(",", 2);
+    const countryId = Number(idRaw.trim());
+    const callingCode = Number(codeRaw.trim());
+    if (!Number.isInteger(countryId) || countryId <= 0 || !Number.isInteger(callingCode) || callingCode <= 0) {
+      continue;
+    }
+    mapping[countryId] = callingCode;
+  }
+
+  return mapping;
+}
+
 const TITLE_FLAGS = [
   { flag: 1, label: "院士" },
   { flag: 2, label: "国家级高层次人才" },
@@ -303,27 +375,8 @@ const TITLE_FLAGS = [
 ] as const;
 
 const TITLE_LABELS: EnumDictionary = Object.fromEntries(TITLE_FLAGS.map(({ flag, label }) => [flag, label]));
-
-const TAG_ID_TO_LABEL: Record<number, string> = {
-  1: "校级领导", 2: "院所领导", 3: "处级领导", 4: "学协会领导", 5: "学科带头人",
-  6: "QS Top 200", 7: "QS Top 500", 8: "双一流高校", 9: "985高校",
-  10: "本科院校", 11: "专科院校", 12: "公办", 13: "民办", 14: "合作办学",
-  15: "期刊任职", 16: "学术会议组织经验", 17: "学术评审经验", 18: "审修经历",
-  19: "学术文章原创经验", 20: "顶级学术机构", 21: "导师师资",
-  22: "深度话题创作", 23: "一般话题创作", 24: "专业曝光", 25: "社交拓展",
-  26: "知识分享", 27: "期刊审稿", 28: "同行预审", 29: "翻译", 30: "润色",
-  31: "审修", 32: "降重", 33: "头条创作", 34: "提案", 35: "会议嘉宾",
-  36: "艾思云课堂", 37: "论文一对一", 38: "其它", 39: "会议组委审稿",
-  40: "专家审稿", 41: "校对", 42: "排版", 43: "图表编辑", 44: "合作办会",
-  45: "经费筹集", 46: "专家推荐", 47: "场地申请", 48: "合作引荐",
-  49: "宣传组织", 50: "会务筹备", 51: "志愿者组织", 52: "参会推荐",
-  53: "投稿推荐", 54: "出版配合", 55: "翻译水平高", 56: "润色水平高",
-  57: "合作意愿强", 58: "配合程度高", 59: "有亲和力", 60: "学术资源丰富",
-  61: "时间观念强", 62: "任务质量高", 63: "学术水平高", 64: "翻译水平低",
-  65: "润色水平低", 66: "合作意愿弱", 67: "配合程度低", 68: "不好相处",
-  69: "学术资源欠缺", 70: "时间观念差", 71: "任务质量低", 72: "学术水平低",
-  73: "海外院校", 74: "终止合作", 75: "审批文件",
-};
+const TAG_LABEL_TO_ID: Record<string, number> = loadTagLabelToIdFromCsv();
+const COUNTRY_ID_TO_CALLING_CODE: Record<number, number> = loadCountryIdToCallingCodeFromCsv();
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -526,43 +579,140 @@ function toTitleArray(value: unknown): DictionaryItem[] {
   return Array.isArray(translated) ? (translated as DictionaryItem[]) : [];
 }
 
-function translateSex(value: unknown): string | null {
-  if (value === 1 || value === "1" || value === "male") return "男";
-  if (value === 2 || value === "2" || value === "female") return "女";
-  if (value === 0 || value === "0") return null;
-  return toNullableString(value);
+function translateSexCode(value: unknown): 0 | 1 | 2 {
+  if (value === 1 || value === "1" || value === "male" || value === "男") return 1;
+  if (value === 2 || value === "2" || value === "female" || value === "女") return 2;
+  return 0;
 }
 
-function normalizeTags(value: unknown): BusinessTags {
-  const empty: BusinessTags = { position: [], experience: [], other: [] };
-
-  if (!isPlainObject(value)) {
-    // 新 schema：逗号拼接的数字 ID 串，如 "5,8,21"
-    if (typeof value === "string" && value.trim()) {
-      const labels = value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => {
-          const id = Number(s);
-          return Number.isInteger(id) && id > 0 ? (TAG_ID_TO_LABEL[id] ?? null) : s;
-        })
-        .filter((s): s is string => s !== null && s.length > 0);
-      return { position: [], experience: [], other: labels };
-    }
-    return empty;
+function toMappedId(value: unknown, dictionary: EnumDictionary): number | null {
+  if (isDictionaryItem(value)) {
+    const numericValue = parseNumericValue(value.value);
+    return numericValue !== undefined && numericValue > 0 ? numericValue : null;
   }
 
-  // 旧 schema：{academic_honors, institution_tier, experiences, others} 对象
-  const position = toStringList(firstPresent(value, ["position", "academic_honors"]));
-  const experience = toStringList(firstPresent(value, ["experience", "experiences"]));
-  const other = toStringList([
-    ...toStringList(firstPresent(value, ["other"])),
-    ...toStringList(firstPresent(value, ["institution_tier"])),
-    ...toStringList(firstPresent(value, ["others"])),
-  ]);
+  const numericValue = parseNumericValue(value);
+  if (numericValue !== undefined) {
+    return numericValue > 0 ? numericValue : null;
+  }
 
-  return { position, experience, other };
+  if (typeof value === "string") {
+    const matchedKey = findEnumKeyByLabel(value, dictionary);
+    return matchedKey !== undefined ? matchedKey : null;
+  }
+
+  return null;
+}
+
+function toApiId(value: unknown, dictionary: EnumDictionary): number {
+  return toMappedId(value, dictionary) ?? 0;
+}
+
+function toCountryCallingCode(value: unknown, fallbackCountryId: number): number | null {
+  const explicit = parseNumericValue(value);
+  if (explicit !== undefined && explicit > 0) {
+    return explicit;
+  }
+  if (fallbackCountryId > 0) {
+    return COUNTRY_ID_TO_CALLING_CODE[fallbackCountryId] ?? null;
+  }
+  return null;
+}
+
+function toSingleDomainId(value: unknown): number {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const mapped = toMappedId(item, DOMAIN_LABELS);
+      if (mapped !== null) {
+        return mapped;
+      }
+    }
+    return 0;
+  }
+  return toApiId(value, DOMAIN_LABELS);
+}
+
+function toProvinceOrCityId(value: unknown): number {
+  const numericValue = parseNumericValue(value);
+  return numericValue !== undefined && numericValue >= 0 ? numericValue : 0;
+}
+
+function toJoinedNullableString(value: unknown): string | null {
+  const items = toStringList(value);
+  return items.length > 0 ? items.join(",") : null;
+}
+
+function toTitleBitmask(value: unknown): number {
+  const items = toTitleArray(value);
+  if (items.length === 0) {
+    const numericValue = parseNumericValue(value);
+    return numericValue !== undefined && numericValue >= 0 ? numericValue : 0;
+  }
+
+  return items.reduce((sum, item) => {
+    const numericValue = parseNumericValue(item.value);
+    return numericValue !== undefined && numericValue > 0 ? sum + numericValue : sum;
+  }, 0);
+}
+
+function normalizeTagLabelToId(label: string): number | null {
+  const normalized = label.trim();
+  if (!normalized) {
+    return null;
+  }
+  return TAG_LABEL_TO_ID[normalized] ?? null;
+}
+
+function normalizeTagsToIdString(value: unknown): string | null {
+  const ids = new Set<number>();
+
+  const appendOne = (raw: unknown) => {
+    if (raw === null || raw === undefined || raw === "") {
+      return;
+    }
+    const numericValue = parseNumericValue(raw);
+    if (numericValue !== undefined) {
+      if (numericValue > 0) {
+        ids.add(numericValue);
+      }
+      return;
+    }
+    if (typeof raw === "string") {
+      const mapped = normalizeTagLabelToId(raw);
+      if (mapped !== null) {
+        ids.add(mapped);
+      }
+    }
+  };
+
+  const appendMany = (raw: unknown) => {
+    if (Array.isArray(raw)) {
+      raw.forEach(appendOne);
+      return;
+    }
+    if (typeof raw === "string") {
+      raw
+        .split(/[,;\n，；、]+/g)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .forEach(appendOne);
+      return;
+    }
+    appendOne(raw);
+  };
+
+  if (isPlainObject(value)) {
+    appendMany(firstPresent(value, ["position", "academic_honors"]));
+    appendMany(firstPresent(value, ["experience", "experiences"]));
+    appendMany(firstPresent(value, ["other"]));
+    appendMany(firstPresent(value, ["institution_tier"]));
+    appendMany(firstPresent(value, ["others"]));
+  } else {
+    appendMany(value);
+  }
+
+  const normalized = Array.from(ids).sort((a, b) => a - b);
+  return normalized.length > 0 ? normalized.join(",") : null;
 }
 
 export function translateExpertProfileBusinessStructured(structured: unknown): unknown {
@@ -570,29 +720,35 @@ export function translateExpertProfileBusinessStructured(structured: unknown): u
     return structured;
   }
 
-  // 业务接口对外暴露的是数字化系统约定的字段名，不把底层 skill 的历史命名
-  // （academic_title / research_areas / avatar_url 等）直接透传给上游。
+  const country = toApiId(firstPresent(structured, ["country", "country_region"]), COUNTRY_LABELS);
+
+  // 业务接口现在直接返回上游 Java 侧约定的新字段结构。
+  // 这里统一把 skill 的新旧字段名都折叠到最终 API 命名，避免业务层再做二次转换。
   return {
     avatar: toNullableString(firstPresent(structured, ["avatar", "avatar_url"])),
-    name: toNullableString(firstPresent(structured, ["surname", "name"])),
-    sex: translateSex(firstPresent(structured, ["sex", "gender"])),
+    surname: toNullableString(firstPresent(structured, ["surname", "name"])),
+    sex: translateSexCode(firstPresent(structured, ["sex", "gender"])),
     birthday: toNullableString(firstPresent(structured, ["birthday", "birth_date"])),
-    country: toNullableScalarDictionaryItem(firstPresent(structured, ["country", "country_region"]), COUNTRY_LABELS),
+    country,
+    countryCode: toCountryCallingCode(firstPresent(structured, ["countryCode", "country_code"]), country),
+    province: toProvinceOrCityId(firstPresent(structured, ["province"])),
+    city: toProvinceOrCityId(firstPresent(structured, ["city"])),
     organization: toNullableString(firstPresent(structured, ["organization", "institution"])),
     department: toNullableString(firstPresent(structured, ["department", "college_department"])),
-    domain: toDictionaryItemArray(firstPresent(structured, ["domain", "research_areas"]), DOMAIN_LABELS),
-    direction: toStringList(firstPresent(structured, ["direction", "research_directions"])),
-    professional: toNullableScalarDictionaryItem(firstPresent(structured, ["professional", "academic_title"]), PROFESSIONAL_LABELS),
+    domain: toSingleDomainId(firstPresent(structured, ["domain", "research_areas"])),
+    direction: toJoinedNullableString(firstPresent(structured, ["direction", "research_directions"])),
+    professional: toApiId(firstPresent(structured, ["professional", "academic_title"]), PROFESSIONAL_LABELS),
     position: toNullableString(firstPresent(structured, ["position", "admin_title"])),
-    phone: toNullableString(firstPresent(structured, ["phone"])),
+    phone: toNullableString(firstPresent(structured, ["phone", "mobile"])),
+    tel: toNullableString(firstPresent(structured, ["tel", "telephone", "office_phone"])),
     email: toNullableString(firstPresent(structured, ["email"])),
     // `contact` 只表示 phone / email 之外的备用联系方式，不允许用
     // `contact_preferred`（邮箱/电话偏好）来兜底，否则会误导业务侧。
     contact: toNullableString(firstPresent(structured, ["contact"])),
-    bio: toNullableString(firstPresent(structured, ["bio", "introduction", "intro", "content"])),
-    academic: toStringList(firstPresent(structured, ["academic", "social_positions"])),
-    journal: toStringList(firstPresent(structured, ["journal", "journal_resources"])),
-    title: toTitleArray(firstPresent(structured, ["title"])),
-    tags: normalizeTags(firstPresent(structured, ["tags"])),
+    content: toNullableString(firstPresent(structured, ["content", "bio", "introduction", "intro"])),
+    academic: toJoinedNullableString(firstPresent(structured, ["academic", "social_positions"])),
+    journal: toJoinedNullableString(firstPresent(structured, ["journal", "journal_resources"])),
+    title: toTitleBitmask(firstPresent(structured, ["title"])),
+    tags: normalizeTagsToIdString(firstPresent(structured, ["tags"])),
   };
 }

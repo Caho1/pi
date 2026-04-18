@@ -45,6 +45,7 @@ interface SubmittedTask {
   record: TaskRecord;
   httpStatus: number;
   includeRunResult: boolean;
+  deduped: boolean;
 }
 
 interface ExpertProfileExtractRequest {
@@ -80,6 +81,14 @@ function readHeaderToken(headers: Record<string, unknown>): string | undefined {
 
 function createTerminalLogPrefix(): string {
   return new Date().toISOString();
+}
+
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function toSafeUrlPreview(value: unknown): string | undefined {
@@ -204,6 +213,7 @@ export async function buildControlPlaneApp(options?: {
         record: existing,
         httpStatus: 202,
         includeRunResult: false,
+        deduped: true,
       };
     }
 
@@ -241,6 +251,7 @@ export async function buildControlPlaneApp(options?: {
         record: rejectedRecord,
         httpStatus: 202,
         includeRunResult: false,
+        deduped: false,
       };
     }
 
@@ -273,6 +284,7 @@ export async function buildControlPlaneApp(options?: {
       record: freshRecord,
       httpStatus: includeRunResult ? 200 : 202,
       includeRunResult,
+      deduped: false,
     };
   }
 
@@ -334,29 +346,68 @@ export async function buildControlPlaneApp(options?: {
       case "SUCCEEDED":
       case "PARTIAL":
         return 200;
-      case "REJECTED":
-        return 400;
-      case "TIMED_OUT":
-        return 504;
-      case "FAILED":
-        return 502;
-      case "CANCELLED":
-      case "CANCELLING":
-        return 409;
       default:
-        return 202;
+        return 500;
     }
   }
 
-  function extractBusinessTokenUsage(record?: TaskRecord) {
-    const promptTokens = record?.result?.usage?.inputTokens ?? 0;
-    const completionTokens = record?.result?.usage?.outputTokens ?? 0;
+  function buildExpertProfileBusinessError(record: TaskRecord) {
+    const existingError = inputRecordError(record);
+    if (existingError) {
+      return existingError;
+    }
 
+    // 业务接口约定失败时一定返回 error；如果底层任务没有显式错误对象，
+    // 这里按最终状态补一份兜底错误，保证 Java 侧可以稳定读取。
     return {
-      promptTokens,
-      completionTokens,
-      totalTokens: promptTokens + completionTokens,
+      stage: "platform",
+      code: "task.not_succeeded",
+      message: `Task finished with status '${record.status}'`,
+      retryable: record.status === "ROUTED" || record.status === "PREPARING" || record.status === "RUNNING",
     };
+  }
+
+  function inputRecordError(record: TaskRecord) {
+    return record.error ?? record.result?.error ?? null;
+  }
+
+  function hasMeaningfulExpertProfileBusinessData(data: unknown): boolean {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return false;
+    }
+
+    const record = data as Record<string, unknown>;
+    const textSignalKeys = [
+      "avatar",
+      "surname",
+      "birthday",
+      "organization",
+      "department",
+      "direction",
+      "position",
+      "phone",
+      "tel",
+      "email",
+      "contact",
+      "content",
+      "academic",
+      "journal",
+      "tags",
+    ];
+    const hasTextSignal = textSignalKeys.some((key) => {
+      const value = record[key];
+      return typeof value === "string" && value.trim().length > 0;
+    });
+    if (hasTextSignal) {
+      return true;
+    }
+
+    // 业务接口里的数值字段默认值都是 `0`，只有非 0 才表示真的抽到了有效信息。
+    const numericSignalKeys = ["sex", "country", "countryCode", "province", "city", "domain", "professional", "title"];
+    return numericSignalKeys.some((key) => {
+      const value = record[key];
+      return typeof value === "number" && Number.isFinite(value) && value !== 0;
+    });
   }
 
   function serializeExpertProfileResponse(input: {
@@ -366,10 +417,7 @@ export async function buildControlPlaneApp(options?: {
   }) {
     if (!input.record) {
       return {
-        success: false,
-        status: null,
-        ...extractBusinessTokenUsage(),
-        data: null,
+        status: 500,
         error: {
           stage: "validation",
           code: input.authError ? "unauthorized" : "invalid_request",
@@ -379,12 +427,29 @@ export async function buildControlPlaneApp(options?: {
       };
     }
 
+    const httpStatus = mapExpertProfileResponseStatus(input.record);
+    if (httpStatus === 200) {
+      const translated = translateExpertProfileBusinessStructured(input.record.result?.result?.structured ?? null);
+      if (!hasMeaningfulExpertProfileBusinessData(translated)) {
+        return {
+          status: 500,
+          error: {
+            stage: "validation",
+            code: "empty_profile",
+            message: "Extractor returned an empty expert profile payload",
+            retryable: false,
+          },
+        };
+      }
+      return {
+        status: 200,
+        data: translated,
+      };
+    }
+
     return {
-      success: input.record.status === "SUCCEEDED" || input.record.status === "PARTIAL",
-      status: input.record.status,
-      ...extractBusinessTokenUsage(input.record),
-      data: translateExpertProfileBusinessStructured(input.record.result?.result?.structured ?? null),
-      error: input.record.error ?? input.record.result?.error ?? null,
+      status: 500,
+      error: buildExpertProfileBusinessError(input.record),
     };
   }
 
@@ -416,7 +481,10 @@ export async function buildControlPlaneApp(options?: {
       // 业务接口默认使用共享 token 做最小鉴权，避免上游系统直接裸调用。
       const requestToken = readHeaderToken(request.headers as Record<string, unknown>);
       if (!requestToken || requestToken !== configuredToken) {
-        return reply.code(401).send(
+        console.error(
+          `${createTerminalLogPrefix()} [expert-profile] 500 auth_failed remoteIp=${request.ip} hasHeader=${Boolean(requestToken)}`,
+        );
+        return reply.code(500).send(
           serializeExpertProfileResponse({
             authError: "Unauthorized: invalid or missing API token",
           }),
@@ -428,7 +496,10 @@ export async function buildControlPlaneApp(options?: {
       validateExpertProfileExtractRequest(body);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return reply.code(400).send(
+      console.error(
+        `${createTerminalLogPrefix()} [expert-profile] 500 validation_failed message="${message}" body=${safeJson(body)}`,
+      );
+      return reply.code(500).send(
         serializeExpertProfileResponse({
           validationError: message,
         }),
@@ -437,19 +508,47 @@ export async function buildControlPlaneApp(options?: {
 
     const { taskRequest } = buildExpertProfileTaskRequest(body);
     console.log(
-      `${createTerminalLogPrefix()} [expert-profile] submit tenant=${taskRequest.tenantId} timeoutMs=${taskRequest.timeoutMs} url=${taskRequest.input.prompt}`,
+      `${createTerminalLogPrefix()} [expert-profile] submit tenant=${taskRequest.tenantId} timeoutMs=${taskRequest.timeoutMs} idempotencyKey=${taskRequest.idempotencyKey} url=${taskRequest.input.prompt}`,
     );
     const submitted = await submitTask(taskRequest);
-    console.log(
-      `${createTerminalLogPrefix()} [expert-profile] result status=${submitted.record.status} taskId=${submitted.record.taskId} error=${submitted.record.error?.code ?? submitted.record.result?.error?.code ?? "none"}`,
-    );
-    return reply
-      .code(mapExpertProfileResponseStatus(submitted.record))
-      .send(
-        serializeExpertProfileResponse({
-          record: submitted.record,
-        }),
+    const record = submitted.record;
+    const serialized = serializeExpertProfileResponse({
+      record,
+    });
+    const errObj =
+      "error" in serialized
+        ? serialized.error
+        : record.error ?? record.result?.error ?? null;
+    const httpStatus = serialized.status;
+    const logLine =
+      `${createTerminalLogPrefix()} [expert-profile] result httpStatus=${httpStatus} status=${record.status} ` +
+      `taskId=${record.taskId} runId=${record.latestRunId ?? "none"} deduped=${submitted.deduped} ` +
+      `idempotencyKey=${taskRequest.idempotencyKey} ` +
+      `errorStage=${errObj?.stage ?? "none"} errorCode=${errObj?.code ?? "none"} ` +
+      `errorMessage="${errObj?.message ?? ""}" retryable=${errObj?.retryable ?? "n/a"}`;
+    if (httpStatus === 200) {
+      console.log(logLine);
+    } else {
+      console.error(logLine);
+      if (submitted.deduped) {
+        console.error(
+          `${createTerminalLogPrefix()} [expert-profile] 500 hit cached terminal record — upstream is reusing idempotencyKey/requestId "${taskRequest.idempotencyKey}". ` +
+            `Change the requestId or purge the stale record to retry.`,
+        );
+      }
+      console.error(
+        `${createTerminalLogPrefix()} [expert-profile] record dump: ${safeJson({
+          taskId: record.taskId,
+          status: record.status,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+          error: record.error,
+          resultError: record.result?.error,
+          latestRunId: record.latestRunId,
+        })}`,
       );
+    }
+    return reply.code(httpStatus).send(serialized);
   });
 
   app.get("/v1/agent-tasks/:taskId", async (request, reply) => {

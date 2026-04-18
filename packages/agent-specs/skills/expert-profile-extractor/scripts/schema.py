@@ -17,6 +17,7 @@ class ExpertProfile(BaseModel):
     sex: int = 0
     birthday: Optional[str] = None
     country: int = 0
+    countryCode: Optional[int] = None
     province: int = 0
     city: int = 0
     organization: Optional[str] = None
@@ -26,6 +27,7 @@ class ExpertProfile(BaseModel):
     professional: int = 0
     position: Optional[str] = None
     phone: Optional[str] = None
+    tel: Optional[str] = None
     email: Optional[str] = None
     contact: Optional[str] = None
     content: Optional[str] = None
@@ -61,7 +63,7 @@ LLM_FIELDS = [
 ]
 
 # 规则层负责的高置信度字段。
-RULE_FIELDS = ["email", "phone", "avatar", "surname", "country"]
+RULE_FIELDS = ["email", "phone", "tel", "avatar", "surname", "country"]
 
 # 这些字段在 merge 阶段允许临时使用 list 作为“原始表达”，之后再由规范化层
 # 统一压成最终 API 需要的逗号字符串或位运算值。
@@ -82,6 +84,7 @@ ALL_FIELDS = [
     "sex",
     "birthday",
     "country",
+    "countryCode",
     "province",
     "city",
     "organization",
@@ -91,6 +94,7 @@ ALL_FIELDS = [
     "professional",
     "position",
     "phone",
+    "tel",
     "email",
     "contact",
     "content",

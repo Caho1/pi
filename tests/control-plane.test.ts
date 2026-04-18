@@ -307,6 +307,8 @@ describe("control plane API", () => {
                 research_directions: ["具身智能", "多模态大模型"],
                 academic_title: "副教授",
                 admin_title: "博士生导师",
+                phone: "13800000000",
+                tel: "021-55270127",
                 email: "zhangsan@example.edu",
                 contact_preferred: "email",
                 bio: "现任某大学副教授，长期从事人工智能与具身智能研究。",
@@ -348,47 +350,34 @@ describe("control plane API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      success: true,
-      status: "SUCCEEDED",
-      promptTokens: 3500,
-      completionTokens: 420,
-      totalTokens: 3920,
+      status: 200,
       data: {
         avatar: "https://example.edu/avatar.png",
-        name: "张三",
-        sex: "男",
+        surname: "张三",
+        sex: 1,
         birthday: "1987-03",
-        country: {
-          value: 1,
-          name: "中国",
-        },
+        country: 1,
+        countryCode: 86,
+        province: 0,
+        city: 0,
         organization: "某大学",
         department: "计算机学院 / 人工智能系",
-        domain: [
-          {
-            value: 8,
-            name: "人工智能",
-          },
-        ],
-        direction: ["具身智能", "多模态大模型"],
-        professional: {
-          value: 2,
-          name: "副教授",
-        },
+        domain: 8,
+        direction: "具身智能,多模态大模型",
+        professional: 2,
         position: "博士生导师",
+        phone: "13800000000",
+        tel: "021-55270127",
         email: "zhangsan@example.edu",
         contact: null,
-        bio: "现任某大学副教授，长期从事人工智能与具身智能研究。",
-        academic: ["中国人工智能学会会员"],
-        journal: ["《模式识别与人工智能》审稿人"],
-        tags: {
-          position: ["学科带头人"],
-          experience: ["参与学术社团"],
-          other: ["双一流", "导师职务"],
-        },
+        content: "现任某大学副教授，长期从事人工智能与具身智能研究。",
+        academic: "中国人工智能学会会员",
+        journal: "《模式识别与人工智能》审稿人",
+        title: 0,
+        tags: "4,5,8,21",
       },
-      error: null,
     });
+    expect(response.json()).not.toHaveProperty("error");
     expect(capturedTaskType).toBe("expert.profile.extract");
     expect(capturedAgentType).toBe("expert-profile");
     expect(capturedPrompt).toBe("https://example.edu/faculty/zhangsan");
@@ -421,18 +410,14 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(401);
+    expect(response.statusCode).toBe(500);
     expect(response.json()).toMatchObject({
-      success: false,
-      status: null,
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      data: null,
+      status: 500,
       error: {
         code: "unauthorized",
       },
     });
+    expect(response.json()).not.toHaveProperty("data");
 
     await app.close();
   });
@@ -491,35 +476,14 @@ describe("control plane API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      success: true,
-      status: "SUCCEEDED",
+      status: 200,
       data: {
-        professional: {
-          value: 2,
-          name: "副教授",
-        },
-        domain: [
-          {
-            value: 8,
-            name: "人工智能",
-          },
-        ],
-        title: [
-          {
-            value: 1,
-            name: "院士",
-          },
-          {
-            value: 8,
-            name: "IEEE Fellow",
-          },
-        ],
-        country: {
-          value: 9,
-          name: "美国",
-        },
+        professional: 2,
+        domain: 8,
+        title: 9,
+        country: 9,
+        countryCode: 1,
       },
-      error: null,
     });
 
     await app.close();
@@ -578,29 +542,13 @@ describe("control plane API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      success: true,
-      status: "SUCCEEDED",
+      status: 200,
       data: {
-        professional: {
-          value: 2,
-          name: "副教授",
-        },
-        domain: [
-          {
-            value: 7,
-            name: "计算机科学与技术",
-          },
-          {
-            value: 8,
-            name: "人工智能",
-          },
-        ],
-        country: {
-          value: 9,
-          name: "美国",
-        },
+        professional: 2,
+        domain: 7,
+        country: 9,
+        countryCode: 1,
       },
-      error: null,
     });
 
     await app.close();
@@ -659,29 +607,13 @@ describe("control plane API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      success: true,
-      status: "SUCCEEDED",
+      status: 200,
       data: {
-        professional: {
-          value: null,
-          name: "首席科学家",
-        },
-        domain: [
-          {
-            value: 8,
-            name: "人工智能",
-          },
-          {
-            value: null,
-            name: "具身智能",
-          },
-        ],
-        country: {
-          value: null,
-          name: "火星",
-        },
+        professional: 0,
+        domain: 8,
+        country: 0,
+        countryCode: null,
       },
-      error: null,
     });
 
     await app.close();
@@ -743,16 +675,12 @@ describe("control plane API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      success: true,
-      status: "SUCCEEDED",
-      promptTokens: 12,
-      completionTokens: 8,
-      totalTokens: 20,
+      status: 200,
       data: {
-        name: "李四",
+        surname: "李四",
       },
-      error: null,
     });
+    expect(response.json()).not.toHaveProperty("error");
 
     await app.close();
   });
@@ -770,18 +698,97 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(500);
     expect(response.json()).toMatchObject({
-      success: false,
-      status: null,
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      data: null,
+      status: 500,
       error: {
         code: "invalid_request",
       },
     });
+    expect(response.json()).not.toHaveProperty("data");
+
+    await app.close();
+  });
+
+  test("expert profile business route rejects empty structured payloads even when the task succeeded", async () => {
+    const app = await buildControlPlaneApp({
+      runtimeRoot: "runtime/test-control-plane-expert-profile",
+      processor: {
+        async process(task) {
+          return {
+            taskId: task.taskId,
+            runId: "run-expert-profile-empty",
+            specId: task.compiledSpec.specId,
+            status: "succeeded",
+            completion: {
+              barrier: "settled-barrier",
+              promptResolved: true,
+              terminalEventSeen: true,
+              noPendingBackgroundWork: true,
+              finalizerPassed: true,
+            },
+            result: {
+              submissionMode: "submit_result",
+              structured: {
+                avatar: null,
+                surname: null,
+                sex: 0,
+                birthday: null,
+                country: 0,
+                countryCode: null,
+                province: 0,
+                city: 0,
+                organization: null,
+                department: null,
+                domain: 0,
+                direction: null,
+                professional: 0,
+                position: null,
+                phone: null,
+                tel: null,
+                email: null,
+                contact: null,
+                content: null,
+                academic: null,
+                journal: null,
+                title: 0,
+                tags: null,
+              },
+            },
+            artifacts: [],
+            usage: {
+              inputTokens: 10,
+              outputTokens: 5,
+            },
+            timestamps: {
+              startedAt: new Date().toISOString(),
+              finishedAt: new Date().toISOString(),
+            },
+          };
+        },
+        async cancel() {
+          return false;
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/expert-profiles/extract",
+      payload: {
+        url: "https://example.edu/faculty/empty",
+        requestId: "expert-biz-empty-1",
+      },
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toMatchObject({
+      status: 500,
+      error: {
+        code: "empty_profile",
+      },
+    });
+    expect(response.json()).not.toHaveProperty("data");
 
     await app.close();
   });
@@ -808,18 +815,14 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(502);
+    expect(response.statusCode).toBe(500);
     expect(response.json()).toMatchObject({
-      success: false,
-      status: "FAILED",
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      data: null,
+      status: 500,
       error: {
         code: "task.processing_failed",
       },
     });
+    expect(response.json()).not.toHaveProperty("data");
 
     await app.close();
   });
