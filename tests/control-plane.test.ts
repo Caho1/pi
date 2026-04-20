@@ -410,9 +410,9 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      status: 500,
+      status: 400,
       error: {
         code: "unauthorized",
       },
@@ -698,9 +698,9 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      status: 500,
+      status: 400,
       error: {
         code: "invalid_request",
       },
@@ -781,9 +781,9 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      status: 500,
+      status: 400,
       error: {
         code: "empty_profile",
       },
@@ -815,9 +815,9 @@ describe("control plane API", () => {
       },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      status: 500,
+      status: 400,
       error: {
         code: "task.processing_failed",
       },

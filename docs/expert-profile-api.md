@@ -47,11 +47,8 @@ Content-Type: application/json
 
 | HTTP 状态码 | 含义 |
 |---|---|
-| `200` | 抽取成功，`status` 为 `SUCCEEDED` 或 `PARTIAL` |
-| `400` | 请求体不合法，例如缺少 `url` |
-| `401` | token 缺失或错误 |
-| `502` | 抽取执行失败 |
-| `504` | 抽取超时 |
+| `200` | 抽取成功，返回 `data` |
+| `400` | 业务接口错误统一返回 `error`，包括 token 错误、请求体不合法、空档案、执行失败、超时等 |
 
 ## 5. 成功响应
 
@@ -163,7 +160,7 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "status": null,
+  "status": 400,
   "promptTokens": 0,
   "completionTokens": 0,
   "totalTokens": 0,
@@ -182,7 +179,7 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "status": "FAILED",
+  "status": 400,
   "promptTokens": 0,
   "completionTokens": 0,
   "totalTokens": 0,
@@ -201,7 +198,7 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "status": "TIMED_OUT",
+  "status": 400,
   "promptTokens": 0,
   "completionTokens": 0,
   "totalTokens": 0,

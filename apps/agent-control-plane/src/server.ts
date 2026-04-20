@@ -417,7 +417,9 @@ export async function buildControlPlaneApp(options?: {
   }) {
     if (!input.record) {
       return {
-        status: 500,
+        // 业务调用方里的部分 HTTP 客户端会把 500 统一当成传输层异常，
+        // 为了稳定拿到 JSON 错误体，这里把业务错误统一降为 400。
+        status: 400,
         error: {
           stage: "validation",
           code: input.authError ? "unauthorized" : "invalid_request",
@@ -432,7 +434,7 @@ export async function buildControlPlaneApp(options?: {
       const translated = translateExpertProfileBusinessStructured(input.record.result?.result?.structured ?? null);
       if (!hasMeaningfulExpertProfileBusinessData(translated)) {
         return {
-          status: 500,
+          status: 400,
           error: {
             stage: "validation",
             code: "empty_profile",
@@ -448,9 +450,15 @@ export async function buildControlPlaneApp(options?: {
     }
 
     return {
-      status: 500,
+      status: 400,
       error: buildExpertProfileBusinessError(input.record),
     };
+  }
+
+  function businessApiHttpStatus(): number {
+    // 业务接口始终返回 JSON 包装体，错误信息靠响应体里的 `status`/`error`
+    // 表达，避免调用方因为 4xx/5xx 直接走异常分支而拿不到 body。
+    return 200;
   }
 
   const app = Fastify({ logger: false });
@@ -481,14 +489,14 @@ export async function buildControlPlaneApp(options?: {
       // 业务接口默认使用共享 token 做最小鉴权，避免上游系统直接裸调用。
       const requestToken = readHeaderToken(request.headers as Record<string, unknown>);
       if (!requestToken || requestToken !== configuredToken) {
+        const serialized = serializeExpertProfileResponse({
+          authError: "Unauthorized: invalid or missing API token",
+        });
+        const httpStatus = businessApiHttpStatus();
         console.error(
-          `${createTerminalLogPrefix()} [expert-profile] 500 auth_failed remoteIp=${request.ip} hasHeader=${Boolean(requestToken)}`,
+          `${createTerminalLogPrefix()} [expert-profile] httpStatus=${httpStatus} bodyStatus=${serialized.status} auth_failed remoteIp=${request.ip} hasHeader=${Boolean(requestToken)}`,
         );
-        return reply.code(500).send(
-          serializeExpertProfileResponse({
-            authError: "Unauthorized: invalid or missing API token",
-          }),
-        );
+        return reply.code(httpStatus).send(serialized);
       }
     }
 
@@ -496,14 +504,14 @@ export async function buildControlPlaneApp(options?: {
       validateExpertProfileExtractRequest(body);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const serialized = serializeExpertProfileResponse({
+        validationError: message,
+      });
+      const httpStatus = businessApiHttpStatus();
       console.error(
-        `${createTerminalLogPrefix()} [expert-profile] 500 validation_failed message="${message}" body=${safeJson(body)}`,
+        `${createTerminalLogPrefix()} [expert-profile] httpStatus=${httpStatus} bodyStatus=${serialized.status} validation_failed message="${message}" body=${safeJson(body)}`,
       );
-      return reply.code(500).send(
-        serializeExpertProfileResponse({
-          validationError: message,
-        }),
-      );
+      return reply.code(httpStatus).send(serialized);
     }
 
     const { taskRequest } = buildExpertProfileTaskRequest(body);
@@ -519,20 +527,21 @@ export async function buildControlPlaneApp(options?: {
       "error" in serialized
         ? serialized.error
         : record.error ?? record.result?.error ?? null;
-    const httpStatus = serialized.status;
+    const httpStatus = businessApiHttpStatus();
+    const bodyStatus = serialized.status;
     const logLine =
-      `${createTerminalLogPrefix()} [expert-profile] result httpStatus=${httpStatus} status=${record.status} ` +
+      `${createTerminalLogPrefix()} [expert-profile] result httpStatus=${httpStatus} bodyStatus=${bodyStatus} taskStatus=${record.status} ` +
       `taskId=${record.taskId} runId=${record.latestRunId ?? "none"} deduped=${submitted.deduped} ` +
       `idempotencyKey=${taskRequest.idempotencyKey} ` +
       `errorStage=${errObj?.stage ?? "none"} errorCode=${errObj?.code ?? "none"} ` +
       `errorMessage="${errObj?.message ?? ""}" retryable=${errObj?.retryable ?? "n/a"}`;
-    if (httpStatus === 200) {
+    if (bodyStatus === 200) {
       console.log(logLine);
     } else {
       console.error(logLine);
       if (submitted.deduped) {
         console.error(
-          `${createTerminalLogPrefix()} [expert-profile] 500 hit cached terminal record — upstream is reusing idempotencyKey/requestId "${taskRequest.idempotencyKey}". ` +
+          `${createTerminalLogPrefix()} [expert-profile] cached terminal record hit — upstream is reusing idempotencyKey/requestId "${taskRequest.idempotencyKey}". ` +
             `Change the requestId or purge the stale record to retry.`,
         );
       }
